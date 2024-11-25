@@ -20,7 +20,8 @@ jobs:
 
       - name: Install Python dependencies
         run: |
-          pip install pyppeteer==2.1.1
+          pip install -U pyppeteer
+          pyppeteer-install
 
       - name: Run update script
         run: python update_m3u.py
