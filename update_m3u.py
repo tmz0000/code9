@@ -1,28 +1,14 @@
-import requests
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.chrome.service import Service
-from webdriver_manager.chrome import ChromeDriverManager
-import time
-from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
+import pyppeteer
+import asyncio
 
-# Set up ChromeDriver
-options = Options()
-options.add_argument("--headless")
-options.add_argument("--disable-gpu")
-
-capabilities = DesiredCapabilities.CHROME
-capabilities['goog:loggingPrefs'] = {'performance': 'ALL'}
-
-service = Service(ChromeDriverManager().install())
-driver = webdriver.Chrome(service=service, options=options, desired_capabilities=capabilities)
-
-def fetch_new_stream_url(channel_page_url):
-    driver.get(channel_page_url)
-    time.sleep(5)  # Wait for page load
+async def fetch_new_stream_url(channel_page_url):
+    browser = await pyppeteer.launch(headless=True)
+    page = await browser.newPage()
+    await page.goto(channel_page_url)
+    await page.waitForLoadState('networkidle2')
 
     # Get performance logs
-    performance_logs = driver.get_log('performance')
+    performance_logs = await page.tracing._flushTracingLog()
 
     # Find request URL containing "playlist.m3u8?wmsAuthSign="
     for log in performance_logs:
@@ -30,11 +16,13 @@ def fetch_new_stream_url(channel_page_url):
             log_message = log['message']
             request_url = log_message.split('"url":"')[1].split('"')[0]
             if request_url.startswith("playlist.m3u8?wmsAuthSign="):
+                await browser.close()
                 return request_url
 
+    await browser.close()
     return None
 
-def update_m3u_file(m3u_path, channel_updates):
+async def update_m3u_file(m3u_path, channel_updates):
     with open(m3u_path, 'r') as file:
         lines = file.readlines()
 
@@ -47,7 +35,7 @@ def update_m3u_file(m3u_path, channel_updates):
                 channel_url = lines[i + 1].strip()
                 tvg_id = channel_info.split('tvg-id="')[1].split('"')[0]
                 if tvg_id in channel_updates:
-                    new_url = fetch_new_stream_url(channel_updates[tvg_id])
+                    new_url = await fetch_new_stream_url(channel_updates[tvg_id])
                     if new_url:
                         channel_url = new_url  # Update the URL
                         print(f"Updating tvg-id={tvg_id} with new URL: {new_url}")
@@ -57,7 +45,7 @@ def update_m3u_file(m3u_path, channel_updates):
                 file.write(line)
             i += 1
 
-def main():
+async def main():
     m3u_path = 's18.m3u'
     channel_updates = {
         "01": "https://adult-tv-channels.com/redlight-hd-online/",
@@ -70,7 +58,7 @@ def main():
         "08": "https://adult-tv-channels.com/pink-erotic-tv-online/",
         "09": "https://adult-tv-channels.com/private-tv-online/"
     }
-    update_m3u_file(m3u_path, channel_updates)
+    await update_m3u_file(m3u_path, channel_updates)
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
