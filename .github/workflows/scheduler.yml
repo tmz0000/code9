@@ -5,6 +5,9 @@ on:
     - cron: '*/55 * * * *'
   workflow_dispatch:
 
+permissions:
+  contents: write  # Enable write permissions for the workflow
+
 jobs:
   update_playlist:
     runs-on: ubuntu-latest
@@ -12,6 +15,14 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+        with:
+          persist-credentials: false  # Ensure proper authentication
+          fetch-depth: 0  # Fetch all history for accurate commits
+
+      - name: Set up Git user
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -25,3 +36,11 @@ jobs:
 
       - name: Run update script
         run: python update_m3u.py
+
+      - name: Commit and push changes
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git add s18.m3u
+          git commit -m "Update IPTV playlist"
+          git push origin HEAD:${{ github.ref }}
