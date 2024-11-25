@@ -44,6 +44,7 @@ async def update_m3u_file(m3u_path, channel_updates):
                         if new_url:
                             channel_url = new_url
                             print(f"Updating tvg-id={tvg_id} with new URL: {new_url}")
+                            logging.info(f"Updated tvg-id={tvg_id} with new URL: {new_url}")
                     file.write(f"{channel_info}\n{channel_url}\n")
                     i += 1
                 else:
