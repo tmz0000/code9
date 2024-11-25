@@ -33,6 +33,7 @@ jobs:
         run: |
           pip install -U pyppeteer
           pyppeteer-install
+          pip install fastapi uvicorn
 
       - name: Run update script
         run: python update_m3u.py
