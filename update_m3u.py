@@ -11,8 +11,7 @@ async def fetch_new_stream_url(channel_page_url):
         page = await browser.newPage()
         
         # Navigate to channel page URL
-        await page.goto(channel_page_url)
-        await page.waitForLoadState('networkidle2')
+        await page.goto(channel_page_url, {'waitUntil': 'networkidle2'})
 
         # Enable request interception
         await page.setRequestInterception(True)
