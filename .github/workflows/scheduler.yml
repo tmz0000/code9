@@ -16,8 +16,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
         with:
-          persist-credentials: false  # Ensure proper authentication
-          fetch-depth: 0  # Fetch all history for accurate commits
+          token: ${{ secrets.GITHUB_TOKEN }}
+          persist-credentials: false
+          fetch-depth: 0
 
       - name: Set up Git user
         run: |
@@ -38,10 +39,6 @@ jobs:
         run: python update_m3u.py
 
       - name: Commit and push changes
-        uses: actions/checkout@v3
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          persist-credentials: false
         run: |
           git add s18.m3u
           git commit -m "Update IPTV playlist"
