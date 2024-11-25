@@ -10,22 +10,22 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v2
-      
+      - name: Checkout code
+        uses: actions/checkout@v3
+
       - name: Set up Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: '3.9'
 
-      - name: Install Chromium
+      - name: Install dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y chromium-driver
-          sudo apt-get install -y chromium-browser
 
-      - name: Install Selenium and Webdriver Manager
+      - name: Install Python dependencies
         run: |
-          pip install selenium webdriver-manager
+          pip install selenium webdriver-manager pyppeteer
 
       - name: Run update script
         run: python update_m3u.py
