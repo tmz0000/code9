@@ -1,25 +1,31 @@
-import requests
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
+import time
 
 def fetch_new_stream_url(channel_page_url):
-    print(f"Fetching from: {channel_page_url}")
+    options = Options()
+    options.add_argument("--headless")  # Run in headless mode
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
+    service = Service(ChromeDriverManager().install())
+    driver = webdriver.Chrome(service=service, options=options)
+
     try:
-        # Make a request to the provided page URL
-        response = requests.get(channel_page_url, allow_redirects=True)
-
-        # Loop through the network activity to find the playlist.m3u8 URL
-        if 'playlist.m3u8' in response.url:
-            print(f"Found URL: {response.url}")
-            return response.url
-
-        # If redirects lead to playlist.m3u8, return that
-        for history in response.history:
-            if 'playlist.m3u8' in history.headers.get('Location', ''):
-                full_url = history.headers['Location']
-                print(f"Found redirected URL: {full_url}")
-                return full_url
-
+        driver.get(channel_page_url)
+        time.sleep(5)  # Wait for all elements to load completely
+        # Look for the playlist.m3u8 in page source or specific elements
+        links = driver.find_elements_by_tag_name('a')
+        for link in links:
+            href = link.get_attribute('href')
+            if 'playlist.m3u8' in href:
+                print(f"Found URL: {href}")
+                return href
     except Exception as e:
-        print(f"Error fetching new URL from {channel_page_url}: {e}")
+        print(f"Error fetching URL from {channel_page_url}: {e}")
+    finally:
+        driver.quit()
     return None
 
 def update_m3u_file(m3u_path, channel_updates):
@@ -41,7 +47,7 @@ def update_m3u_file(m3u_path, channel_updates):
                             channel_url = new_url  # Update the URL
                             print(f"Updating tvg-id={tvg_id} with new URL: {new_url}")
                     file.write(f"{channel_info}\n{channel_url}\n")
-                    i += 1  # Skip the URL line as we just updated it
+                    i += 1  # Skip the URL line as it's already updated
                 else:
                     file.write(line)
                 i += 1
