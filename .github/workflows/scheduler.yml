@@ -38,8 +38,10 @@ jobs:
         run: python update_m3u.py
 
       - name: Commit and push changes
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          persist-credentials: false
         run: |
           git add s18.m3u
           git commit -m "Update IPTV playlist"
