@@ -1,25 +1,28 @@
 import pyppeteer
 import asyncio
+import logging
+
+logging.basicConfig(level=logging.INFO)
 
 async def fetch_new_stream_url(channel_page_url):
-    browser = await pyppeteer.launch(headless=True)
-    page = await browser.newPage()
-    await page.goto(channel_page_url)
-    await page.waitForLoadState('networkidle2')
+    try:
+        browser = await pyppeteer.launch(headless=True)
+        page = await browser.newPage()
+        await page.goto(channel_page_url)
+        await page.waitForLoadState('networkidle2')
 
-    # Get performance logs
-    performance_logs = await page.tracing._flushTracingLog()
+        performance_logs = await page.tracing._flushTracingLog()
 
-    # Find request URL containing "playlist.m3u8?wmsAuthSign="
-    for log in performance_logs:
-        if log['message'].startswith('{"message":{"method":"Network.requestWillBeSent"'):
-            log_message = log['message']
-            request_url = log_message.split('"url":"')[1].split('"')[0]
-            if request_url.startswith("playlist.m3u8?wmsAuthSign="):
-                await browser.close()
-                return request_url
+        for log in performance_logs:
+            if log['message'].startswith('{"message":{"method":"Network.requestWillBeSent"'):
+                request_url = log['message'].split('"url":"')[1].split('"')[0]
+                if request_url.startswith("playlist.m3u8?wmsAuthSign="):
+                    await browser.close()
+                    return request_url
 
-    await browser.close()
+        await browser.close()
+    except Exception as e:
+        logging.error(f"Failed to fetch stream URL from {channel_page_url}: {e}")
     return None
 
 async def update_m3u_file(m3u_path, channel_updates):
