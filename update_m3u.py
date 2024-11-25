@@ -6,21 +6,31 @@ logging.basicConfig(level=logging.INFO)
 
 async def fetch_new_stream_url(channel_page_url):
     try:
+        # Launch browser in headless mode
         browser = await pyppeteer.launch(headless=True)
         page = await browser.newPage()
+        
+        # Navigate to channel page URL
         await page.goto(channel_page_url)
         await page.waitForLoadState('networkidle2')
 
-        performance_logs = await page.tracing._flushTracingLog()
+        # Enable request interception
+        await page.setRequestInterception(True)
+        page.on('request', lambda req: req.continue_())
 
-        for log in performance_logs:
-            if log['message'].startswith('{"message":{"method":"Network.requestWillBeSent"'):
-                request_url = log['message'].split('"url":"')[1].split('"')[0]
-                if request_url.startswith("playlist.m3u8?wmsAuthSign="):
-                    await browser.close()
-                    return request_url
+        # Get playlist URL from requests
+        playlist_url = None
+        page.on('request', lambda req: globals().update(playlist_url=req.url) 
+                if req.url.startswith("playlist.m3u8?wmsAuthSign=") else None)
+        
+        # Wait for 5 seconds to capture requests
+        await asyncio.sleep(5)
 
+        # Close browser
         await browser.close()
+
+        return playlist_url
+
     except Exception as e:
         logging.error(f"Failed to fetch stream URL from {channel_page_url}: {e}")
     return None
