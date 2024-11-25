@@ -40,6 +40,10 @@ jobs:
 
       - name: Commit and push changes
         run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
           git add s18.m3u
-          git commit -m "Update IPTV playlist"
-          git push origin HEAD:${{ github.ref }}
+          git commit -m "Update IPTV playlist" || echo "No changes to commit"
+          git push origin HEAD:main
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
