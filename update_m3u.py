@@ -5,10 +5,11 @@ def fetch_new_stream_url(channel_page_url):
     try:
         response = requests.get(channel_page_url)
         soup = BeautifulSoup(response.content, 'html.parser')
-        for link in soup.find_all('a'):
-            href = link.get('href')
-            if 'playlist.m3u8' in href:
-                return href
+        for script in soup.find_all('script'):
+            if 'playlist.m3u8' in script.text:
+                start = script.text.find('http')  # find start of URL
+                end = script.text.find('playlist.m3u8') + len('playlist.m3u8')
+                return script.text[start:end]
     except Exception as e:
         print(f"Error fetching new URL from {channel_page_url}: {e}")
     return None
@@ -36,7 +37,7 @@ def update_m3u_file(m3u_path, channel_updates):
             i += 1
 
 def main():
-    m3u_path = 'path_to_your_m3u_file.m3u'
+    m3u_path = 's18.m3u'
     channel_updates = {
         "01": "https://adult-tv-channels.com/redlight-hd-online/",
         "02": "https://adult-tv-channels.com/dorcel-tv-online/",
