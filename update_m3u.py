@@ -33,30 +33,33 @@ async def fetch_new_stream_url(channel_page_url):
 
     except Exception as e:
         logging.error(f"Failed to fetch stream URL from {channel_page_url}: {e}")
-    return None
+        return None
 
 async def update_m3u_file(m3u_path, channel_updates):
-    with open(m3u_path, 'r') as file:
-        lines = file.readlines()
+    try:
+        with open(m3u_path, 'r') as file:
+            lines = file.readlines()
 
-    with open(m3u_path, 'w') as file:
-        i = 0
-        while i < len(lines):
-            line = lines[i]
-            if line.startswith('#EXTINF:') and 'group-title="NEW-XXX"' in line:
-                channel_info = line.strip()
-                channel_url = lines[i + 1].strip()
-                tvg_id = channel_info.split('tvg-id="')[1].split('"')[0]
-                if tvg_id in channel_updates:
-                    new_url = await fetch_new_stream_url(channel_updates[tvg_id])
-                    if new_url:
-                        channel_url = new_url  # Update the URL
-                        print(f"Updating tvg-id={tvg_id} with new URL: {new_url}")
-                file.write(f"{channel_info}\n{channel_url}\n")
-                i += 1  # Skip the URL line as it's already updated
-            else:
-                file.write(line)
-            i += 1
+        with open(m3u_path, 'w') as file:
+            i = 0
+            while i < len(lines):
+                line = lines[i]
+                if line.startswith('#EXTINF:') and 'group-title="NEW-XXX"' in line:
+                    channel_info = line.strip()
+                    channel_url = lines[i + 1].strip()
+                    tvg_id = channel_info.split('tvg-id="')[1].split('"')[0]
+                    if tvg_id in channel_updates:
+                        new_url = await fetch_new_stream_url(channel_updates[tvg_id])
+                        if new_url:
+                            channel_url = new_url  # Update the URL
+                            print(f"Updating tvg-id={tvg_id} with new URL: {new_url}")
+                    file.write(f"{channel_info}\n{channel_url}\n")
+                    i += 1  # Skip the URL line as it's already updated
+                else:
+                    file.write(line)
+                i += 1
+    except Exception as e:
+        logging.error(f"Failed to update M3U file: {e}")
 
 async def main():
     m3u_path = 's18.m3u'
