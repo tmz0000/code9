@@ -1,0 +1,24 @@
+name: Update M3U URLs
+
+on:
+  schedule:
+    - cron: '*/55 * * * *'  # Runs every 55 minutes
+
+jobs:
+  update_urls:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.9'  # Ensure compatibility with your script
+
+      - name: Install Python packages
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests  # Add other packages if needed
+
+      - name: Run update script
+        run: python update_m3u.py
