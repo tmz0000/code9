@@ -6,9 +6,12 @@ logging.basicConfig(level=logging.INFO)
 
 async def fetch_playlist_url(page):
     playlist_url = None
-    async with page.on('request') as req:
-        if req.url.startswith("playlist.m3u8?wmsAuthSign="):
+    def on_request(req):
+        nonlocal playlist_url
+        if req.url.startswith("http"):  # filter URLs starting with http
             playlist_url = req.url
+    page.on('request', on_request)
+    await asyncio.sleep(5)  # wait for requests to complete
     return playlist_url
 
 async def fetch_new_stream_url(channel_page_url):
@@ -18,7 +21,6 @@ async def fetch_new_stream_url(channel_page_url):
         await page.goto(channel_page_url, {'waitUntil': 'networkidle2'})
         await page.setRequestInterception(True)
         page.on('request', lambda req: req.continue_())
-        await asyncio.sleep(5)  # Adjust timing as needed
         playlist_url = await fetch_playlist_url(page)
         await browser.close()
         return playlist_url
