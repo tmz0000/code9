@@ -4,29 +4,46 @@ import logging
 
 logging.basicConfig(level=logging.INFO)
 
-async def fetch_playlist_url(page):
-    playlist_url = None
-    def on_request(req):
-        nonlocal playlist_url
-        if req.url.startswith("http"):  # filter URLs starting with http
-            playlist_url = req.url
-    page.on('request', on_request)
-    await asyncio.sleep(5)  # wait for requests to complete
-    return playlist_url
-
 async def fetch_new_stream_url(channel_page_url):
     try:
+        # Launch browser in headless mode
         browser = await pyppeteer.launch(headless=True)
         page = await browser.newPage()
-        await page.goto(channel_page_url, {'waitUntil': 'networkidle2'})
+        
+        # Enable request interception
         await page.setRequestInterception(True)
-        page.on('request', lambda req: req.continue_())
-        playlist_url = await fetch_playlist_url(page)
+
+        # Intercept requests and capture the playlist URL
+        playlist_url = None
+
+        async def handle_request(request):
+            nonlocal playlist_url
+            if "playlist.m3u8?wmsAuthSign=" in request.url:
+                playlist_url = request.url
+            await request.continue_()  # Continue the request
+
+        page.on('request', lambda req: asyncio.create_task(handle_request(req)))
+
+        # Navigate to the channel page
+        await page.goto(channel_page_url, {'waitUntil': 'networkidle2'})
+
+        # Wait for some time to capture requests
+        await asyncio.sleep(5)
+
+        # Close the browser
         await browser.close()
+
+        if playlist_url:
+            logging.info(f"Found playlist URL: {playlist_url}")
+        else:
+            logging.warning(f"No playlist URL found for {channel_page_url}")
+
         return playlist_url
+
     except Exception as e:
         logging.error(f"Failed to fetch stream URL: {e}")
         return None
+
 
 async def update_m3u_file(m3u_path, channel_updates):
     try:
