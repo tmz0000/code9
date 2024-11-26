@@ -41,5 +41,5 @@ jobs:
       - name: Commit and push changes
         run: |
           git add s18.m3u
-          git commit -m "s18 Updated" || echo "No changes to commit"
+          git commit -m "Update Success" || echo "Attention needed."
           git push origin HEAD:main
