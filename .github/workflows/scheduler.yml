@@ -36,7 +36,7 @@ jobs:
           pip install fastapi uvicorn
 
       - name: Run update script
-        run: python update_m3u.py
+        run: python get_sources.py
 
       - name: Commit and push changes
         run: |
