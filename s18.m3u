@@ -37,10 +37,10 @@ https://ortepe.xyz:26490/tv/extasy/playlist.m3u8?wmsAuthSign=c2VydmVyX3RpbWU9MTE
 https://ortepe.xyz:26490/tv/pinkerotic1/playlist.m3u8?wmsAuthSign=c2VydmVyX3RpbWU9MTEvMjcvMjAyNCAxOjE5OjU1IFBNJmhhc2hfdmFsdWU9MUFLdjZZMnR3V2hCT1l1UzdDdmUxQT09JnZhbGlkbWludXRlcz02MA==
 #EXTINF:-1 tvg-id="09" group-title="NEW-XXX",PRIVATE HD 720p
 https://ortepe.xyz:26490/tv/private/playlist.m3u8?wmsAuthSign=c2VydmVyX3RpbWU9MTEvMjcvMjAyNCAxOjIwOjAyIFBNJmhhc2hfdmFsdWU9N1A1b2JuQUJjRlltSVJDaU9mR3Zldz09JnZhbGlkbWludXRlcz02MA==
-#EXTINF:-1 tvg-id="09" group-title="NEW-XXX",VIXEN HD 1080p
-https://ortepe.xyz:26490/tv/private/playlist.m3u8?wmsAuthSign=c2VydmVyX3RpbWU9MTEvMjcvMjAyNCAxOjIwOjA4IFBNJmhhc2hfdmFsdWU9a3Z5YVZ0VVNCNXNuZ2huNUlWUVVZQT09JnZhbGlkbWludXRlcz02MA==
-
-
+#EXTINF:-1 tvg-id="" group-title="NEW-XXX",VIXEN 720p
+https://moonlight.wideiptv.top/VIXEN/tracks-a1/index.fmp4.m3u8?token=2efc63685ee93dc7aed14e6a652c928066342cd0-33cff2cf9e986a78fad7037d029bb9c6-1732725811-1732715011
+#EXTINF:-1 tvg-id="" group-title="NEW-XXX",PASSION XXX
+https://moonlight.wideiptv.top/PassionXXX/tracks-v1/index.fmp4.m3u8?token=0dc5ce0752860bd75814227eb629e9ec4aef8fab-d95b52972b7a37f454ece90a3dc36c95-1732725474-1732714674
 
 
 
