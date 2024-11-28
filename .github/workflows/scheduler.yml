@@ -31,8 +31,8 @@ jobs:
 
       - name: Install Python dependencies
         run: |
-          pip install -U pyppeteer
-          pyppeteer-install
+          pip install -U playwright
+          playwright install
           pip install fastapi uvicorn
 
       - name: Run update script
