@@ -4,6 +4,9 @@ import logging
 import os
 import re
 import random
+import tracemalloc
+
+tracemalloc.start()
 
 # Logging setup
 logging.basicConfig(level=logging.INFO)
@@ -98,7 +101,7 @@ async def fetch_new_stream_url(channel_page_url):
         
         # Set proxy
         await page.setRequestInterception(True)
-        page.on("request", lambda req: req.continue_(proxy))
+        page.on("request", lambda req: asyncio.create_task(req.continue_(proxy)))
         
         # Create CDP session
         client = await page.target.createCDPSession()
@@ -219,3 +222,5 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+
+tracemalloc.stop()
