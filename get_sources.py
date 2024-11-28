@@ -33,11 +33,12 @@ async def fetch_new_stream_url(channel_page_url):
             request_id = event.get("requestId")
             request_url = event.get("request", {}).get("url", "")
 
-            block_pattern = r"(start_scriptBus|scriptBus|disable-devtool|disable-adblock|adManager)"
-            if re.search(block_pattern, request_url, re.IGNORECASE):
-                logging.info(f"Blocked script: {request_url}")
-                await client.send("Fetch.failRequest", {"requestId": request_id, "errorReason": "BlockedByClient"})
-                return
+            block_patterns = ["start_scriptBus", "scriptBus", "disable-devtool", "disable-adblock", "adManager"]
+            for pattern in block_patterns:
+                if pattern.lower() in request_url.lower():
+                    logging.info(f"Blocked script due to pattern '{pattern}': {request_url}")
+                    await client.send("Fetch.failRequest", {"requestId": request_id, "errorReason": "BlockedByClient"})
+                    return
 
             if ".m3u8?" in request_url:
                 playlist_url = request_url
