@@ -2,6 +2,7 @@ import pyppeteer
 import asyncio
 import logging
 import os
+import re
 
 logging.basicConfig(level=logging.INFO)
 
@@ -32,8 +33,8 @@ async def fetch_new_stream_url(channel_page_url):
             request_id = event.get("requestId")
             request_url = event.get("request", {}).get("url", "")
 
-            block_keywords = ["scriptBus", "disable-devtool", "disable-adblock", "adManager"]
-            if any(keyword in request_url for keyword in block_keywords):
+            block_pattern = r"start_scriptBus|scriptBus|disable-devtool|disable-adblock|adManager"
+            if re.search(block_pattern, request_url):
                 logging.info(f"Blocked script: {request_url}")
                 await client.send("Fetch.failRequest", {"requestId": request_id, "errorReason": "BlockedByClient"})
                 return
