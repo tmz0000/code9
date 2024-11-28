@@ -45,7 +45,11 @@ async def fetch_new_stream_url(channel_page_url):
 
             await request.continue_()
         
-        page.on("request", handle_request)
+        # Correctly schedule the coroutine when the event is emitted
+        def on_request(request):
+            asyncio.create_task(handle_request(request))
+        
+        page.on("request", on_request)
         
         try:
             await page.goto(channel_page_url, {'waitUntil': 'networkidle2', 'timeout': 30000})
@@ -112,7 +116,7 @@ async def update_m3u_file(m3u_path, channel_updates):
     
     except Exception as e:
         logging.error(f"Failed to update M3U file: {e}")
-
+    
 
 async def main():
     m3u_path = 's18.m3u'
