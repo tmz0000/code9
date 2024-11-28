@@ -4,9 +4,9 @@ import logging
 
 logging.basicConfig(level=logging.INFO)
 
-
 async def fetch_new_stream_url(channel_page_url):
     try:
+        # Launch the browser
         browser = await pyppeteer.launch(
             headless=True,
             args=[
@@ -17,51 +17,53 @@ async def fetch_new_stream_url(channel_page_url):
                 '--no-first-run',
                 '--no-zygote',
                 '--single-process',
-                '--disable-gpu'
+                '--disable-gpu',
             ]
         )
         page = await browser.newPage()
 
-        # Disable JavaScript initially
-        await page.setJavaScriptEnabled(False)
+        # Enable interception and DevTools Protocol
+        client = await page.target.createCDPSession()
+        await client.send("Fetch.enable", {
+            "patterns": [{"urlPattern": "*"}]
+        })
 
-        # Enable request interception
-        await page.setRequestInterception(True)
-
-        # Initialize playlist URL variable
+        # Playlist URL placeholder
         playlist_url = None
 
-        # Handle request interception
-        async def handle_request(request):
+        # Function to handle intercepted requests
+        async def handle_request(event):
             nonlocal playlist_url
-            block_keywords = ["scriptBus", "disable-devtool", "disable-adblock", "adManager"]
+            request_id = event.get("requestId")
+            request_url = event.get("request", {}).get("url", "")
 
-            # Filter specific unwanted requests
-            if any(keyword in request.url for keyword in block_keywords):
-                logging.info(f"Filtered: {request.url}")
-                await request.abort()
+            # Block scripts containing specific keywords
+            block_keywords = ["scriptBus", "disable-devtool", "disable-adblock", "adManager"]
+            if any(keyword in request_url for keyword in block_keywords):
+                logging.info(f"Blocked script: {request_url}")
+                await client.send("Fetch.failRequest", {"requestId": request_id, "errorReason": "BlockedByClient"})
                 return
 
-            if ".m3u8?" in request.url:
-                playlist_url = request.url
+            # Capture playlist URL
+            if ".m3u8?" in request_url:
+                playlist_url = request_url
                 logging.info(f"Captured playlist URL: {playlist_url}")
 
-            await request.continue_()  # Continue the request
+            # Continue all other requests
+            await client.send("Fetch.continueRequest", {"requestId": request_id})
 
-        page.on('request', lambda req: asyncio.create_task(handle_request(req)))
+        # Listen to network requests
+        client.on("Fetch.requestPaused", lambda event: asyncio.create_task(handle_request(event)))
 
-        # Navigate to the channel page
+        # Navigate to the page
         try:
             await page.goto(channel_page_url, {'waitUntil': 'networkidle2', 'timeout': 30000})
         except Exception as e:
-            logging.error(f"Page load timed out for {channel_page_url}: {e}")
+            logging.error(f"Page load timed out: {e}")
             await browser.close()
             return None
 
-        # Enable JavaScript after page load (if needed)
-        await page.setJavaScriptEnabled(True)
-
-        # Dynamic wait for playlist URL
+        # Wait dynamically for the playlist URL
         for _ in range(10):  # Retry for up to 10 seconds
             if playlist_url:
                 break
@@ -81,8 +83,6 @@ async def fetch_new_stream_url(channel_page_url):
     except Exception as e:
         logging.error(f"Failed to fetch stream URL: {e}")
         return None
-
-
 
 
 async def update_m3u_file(m3u_path, channel_updates):
