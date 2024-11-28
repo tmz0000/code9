@@ -2,6 +2,7 @@ import asyncio
 from playwright.async_api import async_playwright
 import logging
 import os
+import re
 
 logging.basicConfig(level=logging.INFO)
 
@@ -29,28 +30,34 @@ async def fetch_new_stream_url(channel_page_url):
 
             playlist_url = None
 
-            # Define the block patterns
-            block_patterns = ["start_scriptBus", "scriptBus", "disable-devtool", "disable-adblock", "adManager"]
+            # Define the block patterns as regular expressions
+            block_patterns = [
+                r".*/start_scriptBus\.js$",  # Matches any URL ending with /start_scriptBus.js
+                r".*/scriptBus\.js$",        # Matches any URL ending with /scriptBus.js
+                r".*/adManager\.js$",        # Matches any URL ending with /adManager.js
+                r".*disable-devtool.*",      # Matches any URL containing disable-devtool
+                r".*disable-adblock.*",      # Matches any URL containing disable-adblock
+            ]
 
             # Intercept requests
             async def handle_route(route, request):
                 nonlocal playlist_url
                 request_url = request.url
-            
+
                 # Log every request URL
                 logging.info(f"Request URL: {request_url}")
-            
-                # Check if request URL matches any block patterns
-                if any(pattern.lower() in request_url.lower() for pattern in block_patterns):
+
+                # Check if request URL matches any block patterns using regex (case-insensitive)
+                if any(re.match(pattern, request_url, re.IGNORECASE) for pattern in block_patterns):
                     logging.info(f"Blocked script due to pattern: {request_url}")
                     await route.abort()
                     return
-            
+
                 # Check for playlist URL
                 if ".m3u8?" in request_url:
                     playlist_url = request_url
                     logging.info(f"Captured playlist URL: {playlist_url}")
-            
+
                 # Continue with the request
                 await route.continue_()
 
