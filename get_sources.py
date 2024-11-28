@@ -7,31 +7,36 @@ logging.basicConfig(level=logging.INFO)
 
 async def fetch_new_stream_url(channel_page_url):
     try:
-        # Launch browser in headless mode
         browser = await pyppeteer.launch(headless=True)
         page = await browser.newPage()
         
-        # Enable request interception
         await page.setRequestInterception(True)
 
-        # Intercept requests and capture the playlist URL
         playlist_url = None
 
         async def handle_request(request):
             nonlocal playlist_url
+            block_scripts = [
+                "scriptBus.js",
+                "disable-devtool@latest",
+                "start_scriptBus.js",
+                "disable-adblock",
+                "adManager.js"
+            ]
+
+            if any(script in request.url for script in block_scripts):
+                await request.abort()
+                return
+
             if ".m3u8?" in request.url:
                 playlist_url = request.url
-            await request.continue_()  # Continue the request
+
+            await request.continue_()
 
         page.on('request', lambda req: asyncio.create_task(handle_request(req)))
 
-        # Navigate to the channel page
         await page.goto(channel_page_url, {'waitUntil': 'networkidle2'})
-
-        # Wait for some time to capture requests
         await asyncio.sleep(5)
-
-        # Close the browser
         await browser.close()
 
         if playlist_url:
@@ -68,7 +73,7 @@ async def update_m3u_file(m3u_path, channel_updates):
                         else:
                             logging.error(f"Failed to fetch stream URL for {tvg_id}")
                     file.write(f"{channel_info}\n{channel_url}\n")
-                    i += 2  # Increment by 2 to skip the URL line
+                    i += 2
                 else:
                     file.write(line)
                     i += 1
