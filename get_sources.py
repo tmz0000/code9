@@ -5,7 +5,7 @@ import logging
 logging.basicConfig(level=logging.INFO)
 
 
-async def fetch_new_stream_url_intercept(channel_page_url):
+async def fetch_new_stream_url(channel_page_url):
     try:
         browser = await pyppeteer.launch(headless=True)
         page = await browser.newPage()
