@@ -87,7 +87,8 @@ async def main():
         "10": "https://fuckflix.click/vixen/",
         "11": "https://freeshot.live/live-tv/vixen/848",
         "12": "https://adult-tv-channels.click/vixen/",
-        "13": "https://adult-tv-channels.com/ox-ax-tv-online/"
+        "13": "https://adult-tv-channels.com/ox-ax-tv-online/",
+        "13": "https://adult-tv-channels.com/evil-angel-tv-online/"
         
     }
     await update_m3u_file(m3u_path, channel_updates)
