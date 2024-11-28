@@ -1,78 +1,80 @@
-import pyppeteer
 import asyncio
+from playwright.async_api import async_playwright
 import logging
-import os
-import re
 
 logging.basicConfig(level=logging.INFO)
 
 async def fetch_new_stream_url(channel_page_url):
     try:
-        browser = await pyppeteer.launch(
-            headless=True,
-            args=[
-                '--no-sandbox',
-                '--disable-setuid-sandbox',
-                '--disable-dev-shm-usage',
-                '--disable-accelerated-2d-canvas',
-                '--no-first-run',
-                '--no-zygote',
-                '--single-process',
-                '--disable-gpu',
-            ]
-        )
-        page = await browser.newPage()
-        
-        # Enable request interception
-        await page.setRequestInterception(True)
-        
-        playlist_url = None
-        
-        async def handle_request(request):
-            nonlocal playlist_url
-            request_url = request.url
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(
+                headless=True,
+                args=[
+                    '--no-sandbox',
+                    '--disable-setuid-sandbox',
+                    '--disable-dev-shm-usage',
+                    '--disable-accelerated-2d-canvas',
+                    '--no-first-run',
+                    '--no-zygote',
+                    '--single-process',
+                    '--disable-gpu',
+                    '--disable-blink-features=AutomationControlled',
+                ]
+            )
+            context = await browser.new_context(
+                user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko)',
+            )
+            page = await context.new_page()
 
+            playlist_url = None
+
+            # Define the block patterns
             block_patterns = ["start_scriptBus", "scriptBus", "disable-devtool", "disable-adblock", "adManager"]
-            for pattern in block_patterns:
-                if pattern.lower() in request_url.lower():
-                    logging.info(f"Blocked script due to pattern '{pattern}': {request_url}")
-                    await request.abort()
+
+            # Intercept requests
+            async def handle_route(route, request):
+                nonlocal playlist_url
+                request_url = request.url
+
+                # Check if request URL matches any block patterns
+                if any(pattern.lower() in request_url.lower() for pattern in block_patterns):
+                    logging.info(f"Blocked script due to pattern: {request_url}")
+                    await route.abort()
                     return
 
-            if ".m3u8?" in request_url:
-                playlist_url = request_url
-                logging.info(f"Captured playlist URL: {playlist_url}")
+                # Check for playlist URL
+                if ".m3u8?" in request_url:
+                    playlist_url = request_url
+                    logging.info(f"Captured playlist URL: {playlist_url}")
 
-            await request.continue_()
-        
-        # Correctly schedule the coroutine when the event is emitted
-        def on_request(request):
-            asyncio.create_task(handle_request(request))
-        
-        page.on("request", on_request)
-        
-        try:
-            await page.goto(channel_page_url, {'waitUntil': 'networkidle2', 'timeout': 30000})
-        except Exception as e:
-            logging.error(f"Error loading page {channel_page_url}: {e}")
+                # Continue with the request
+                await route.continue_()
+
+            # Set up route interception
+            await page.route("**/*", handle_route)
+
+            try:
+                await page.goto(channel_page_url, wait_until='domcontentloaded', timeout=60000)
+            except Exception as e:
+                logging.error(f"Error loading page {channel_page_url}: {e}")
+                await browser.close()
+                return None
+
+            # Wait for the playlist URL to be captured
+            max_wait_time = 30  # seconds
+            waited_time = 0
+            while not playlist_url and waited_time < max_wait_time:
+                await asyncio.sleep(1)
+                waited_time += 1
+
             await browser.close()
-            return None
-        
-        # Wait dynamically for the playlist URL
-        max_wait_time = 10  # seconds
-        waited_time = 0
-        while not playlist_url and waited_time < max_wait_time:
-            await asyncio.sleep(1)
-            waited_time += 1
-        
-        await browser.close()
-        
-        if playlist_url and ".m3u8?" in playlist_url:
-            logging.info(f"Found valid playlist URL: {playlist_url}")
-        else:
-            logging.warning(f"No valid playlist URL found for {channel_page_url}")
-        return playlist_url
-    
+
+            if playlist_url and ".m3u8?" in playlist_url:
+                logging.info(f"Found valid playlist URL: {playlist_url}")
+            else:
+                logging.warning(f"No valid playlist URL found for {channel_page_url}")
+            return playlist_url
+
     except Exception as e:
         logging.error(f"Failed to fetch stream URL: {e}")
         return None
