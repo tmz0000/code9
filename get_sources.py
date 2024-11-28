@@ -1,6 +1,7 @@
 import asyncio
 from playwright.async_api import async_playwright
 import logging
+import os
 
 logging.basicConfig(level=logging.INFO)
 
