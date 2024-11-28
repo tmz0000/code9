@@ -83,7 +83,10 @@ async def main():
         "06": "https://adult-tv-channels.com/eroxxx-hd-tv-online/",
         "07": "https://adult-tv-channels.com/extasy-tv-online/",
         "08": "https://adult-tv-channels.com/pink-erotic-tv-online/",
-        "09": "https://adult-tv-channels.com/private-tv-online/"
+        "09": "https://adult-tv-channels.com/private-tv-online/",
+        "10": "https://fuckflix.click/vixen/",
+        "11": "https://freeshot.live/live-tv/vixen/848",
+        "12": "https://adult-tv-channels.click/vixen/"
     }
     await update_m3u_file(m3u_path, channel_updates)
 
