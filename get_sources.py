@@ -4,6 +4,7 @@ import logging
 
 logging.basicConfig(level=logging.INFO)
 
+
 async def fetch_new_stream_url(channel_page_url):
     try:
         # Launch browser in headless mode
@@ -64,13 +65,16 @@ async def update_m3u_file(m3u_path, channel_updates):
                             channel_url = new_url
                             print(f"Updating tvg-id={tvg_id} with new URL: {new_url}")
                             logging.info(f"Updated tvg-id={tvg_id} with new URL: {new_url}")
+                        else:
+                            logging.error(f"Failed to fetch stream URL for {tvg_id}")
                     file.write(f"{channel_info}\n{channel_url}\n")
-                    i += 1
+                    i += 2  # Increment by 2 to skip the URL line
                 else:
                     file.write(line)
-                i += 1
+                    i += 1
     except Exception as e:
         logging.error(f"Failed to update M3U file: {e}")
+
 
 async def main():
     m3u_path = 's18.m3u'
@@ -88,10 +92,10 @@ async def main():
         "11": "https://freeshot.live/live-tv/vixen/848",
         "12": "https://adult-tv-channels.click/vixen/",
         "13": "https://adult-tv-channels.com/ox-ax-tv-online/",
-        "13": "https://adult-tv-channels.com/evil-angel-tv-online/"
-        
+        "14": "https://adult-tv-channels.com/evil-angel-tv-online/"
     }
     await update_m3u_file(m3u_path, channel_updates)
+
 
 if __name__ == "__main__":
     asyncio.run(main())
