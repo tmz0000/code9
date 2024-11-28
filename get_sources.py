@@ -10,7 +10,7 @@ async def fetch_new_stream_url(channel_page_url):
     try:
         async with async_playwright() as p:
             browser = await p.chromium.launch(
-                headless=False,  # Set to False for debugging
+                headless=True,  # Set to True to run in headless mode
                 args=[
                     '--no-sandbox',
                     '--disable-setuid-sandbox',
@@ -41,10 +41,10 @@ async def fetch_new_stream_url(channel_page_url):
             block_patterns = [
                 r".*disable-devtool.*",
                 r".*disable-adblock.*",
-                # Temporarily disable other patterns to test
-                # r".*/start_scriptBus\.js$",
-                # r".*/scriptBus\.js$",
-                # r".*/adManager\.js$",
+                # Re-enable other patterns if necessary
+                r".*/start_scriptBus\.js$",
+                r".*/scriptBus\.js$",
+                r".*/adManager\.js$",
             ]
 
             # Intercept requests
@@ -107,6 +107,7 @@ async def fetch_new_stream_url(channel_page_url):
     except Exception as e:
         logging.error(f"Failed to fetch stream URL: {e}")
         return None
+
 
 
 
