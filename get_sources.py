@@ -7,24 +7,30 @@ logging.basicConfig(level=logging.INFO)
 
 async def fetch_new_stream_url(channel_page_url):
     try:
-        browser = await pyppeteer.launch(headless=True)
+        browser = await pyppeteer.launch(
+            headless=True,
+            args=[
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage',
+                '--disable-accelerated-2d-canvas',
+                '--no-first-run',
+                '--no-zygote',
+                '--single-process',
+                '--disable-gpu'
+            ]
+        )
         page = await browser.newPage()
-        
-        await page.setRequestInterception(True)
 
+        await page.setRequestInterception(True)
         playlist_url = None
 
         async def handle_request(request):
             nonlocal playlist_url
-            block_scripts = [
-                "scriptBus.js",
-                "disable-devtool@latest",
-                "start_scriptBus.js",
-                "disable-adblock",
-                "adManager.js"
-            ]
+            block_keywords = ["scriptBus", "disable-devtool", "disable-adblock", "adManager"]
 
-            if any(script in request.url for script in block_scripts):
+            if any(keyword in request.url for keyword in block_keywords):
+                logging.info(f"Blocking: {request.url}")
                 await request.abort()
                 return
 
@@ -35,20 +41,32 @@ async def fetch_new_stream_url(channel_page_url):
 
         page.on('request', lambda req: asyncio.create_task(handle_request(req)))
 
-        await page.goto(channel_page_url, {'waitUntil': 'networkidle2'})
-        await asyncio.sleep(5)
+        try:
+            await page.goto(channel_page_url, {'waitUntil': 'networkidle2', 'timeout': 30000})
+        except Exception as e:
+            logging.error(f"Page load timed out for {channel_page_url}: {e}")
+            await browser.close()
+            return None
+
+        # Dynamic wait for playlist URL
+        for _ in range(10):  # Retry for up to 10 seconds
+            if playlist_url:
+                break
+            await asyncio.sleep(1)
+
         await browser.close()
 
-        if playlist_url:
+        if playlist_url and playlist_url.endswith(".m3u8"):
             logging.info(f"Found playlist URL: {playlist_url}")
         else:
-            logging.warning(f"No playlist URL found for {channel_page_url}")
+            logging.warning(f"No valid playlist URL found for {channel_page_url}")
 
         return playlist_url
 
     except Exception as e:
         logging.error(f"Failed to fetch stream URL: {e}")
         return None
+
 
 async def update_m3u_file(m3u_path, channel_updates):
     try:
