@@ -18,7 +18,7 @@ async def fetch_new_stream_url(channel_page_url):
 
         async def handle_request(request):
             nonlocal playlist_url
-            if "playlist.m3u8?wmsAuthSign=" in request.url:
+            if ".m3u8?" in request.url:
                 playlist_url = request.url
             await request.continue_()  # Continue the request
 
