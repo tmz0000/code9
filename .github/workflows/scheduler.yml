@@ -34,6 +34,7 @@ jobs:
           pip install -U playwright
           playwright install
           pip install fastapi uvicorn
+          pip install playwright-stealth
 
       - name: Run update script
         run: python get_sources.py
