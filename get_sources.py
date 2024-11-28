@@ -101,7 +101,7 @@ async def fetch_new_stream_url(channel_page_url):
         
         # Set proxy
         await page.setRequestInterception(True)
-        page.on("request", lambda req: asyncio.create_task(req.continue_(proxy)))
+        page.on("request", lambda req: asyncio.create_task(req.continue_({"url": req.url})))
         
         # Create CDP session
         client = await page.target.createCDPSession()
