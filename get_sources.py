@@ -7,7 +7,6 @@ logging.basicConfig(level=logging.INFO)
 
 async def fetch_new_stream_url(channel_page_url):
     try:
-        # Launch browser in headless mode
         browser = await pyppeteer.launch(
             headless=True,
             args=[
@@ -23,6 +22,9 @@ async def fetch_new_stream_url(channel_page_url):
         )
         page = await browser.newPage()
 
+        # Disable JavaScript initially
+        await page.setJavaScriptEnabled(False)
+
         # Enable request interception
         await page.setRequestInterception(True)
 
@@ -34,8 +36,9 @@ async def fetch_new_stream_url(channel_page_url):
             nonlocal playlist_url
             block_keywords = ["scriptBus", "disable-devtool", "disable-adblock", "adManager"]
 
+            # Filter specific unwanted requests
             if any(keyword in request.url for keyword in block_keywords):
-                logging.info(f"Blocking request: {request.url}")
+                logging.info(f"Filtered: {request.url}")
                 await request.abort()
                 return
 
@@ -54,6 +57,9 @@ async def fetch_new_stream_url(channel_page_url):
             logging.error(f"Page load timed out for {channel_page_url}: {e}")
             await browser.close()
             return None
+
+        # Enable JavaScript after page load (if needed)
+        await page.setJavaScriptEnabled(True)
 
         # Dynamic wait for playlist URL
         for _ in range(10):  # Retry for up to 10 seconds
@@ -75,6 +81,7 @@ async def fetch_new_stream_url(channel_page_url):
     except Exception as e:
         logging.error(f"Failed to fetch stream URL: {e}")
         return None
+
 
 
 
