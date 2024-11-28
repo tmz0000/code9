@@ -10,32 +10,30 @@ async def fetch_new_stream_url(channel_page_url):
         browser = await pyppeteer.launch(headless=True)
         page = await browser.newPage()
         
-        await page.setRequestInterception(True)
+        response = await page.goto(channel_page_url, {'waitUntil': 'networkidle2'})
+        html = await response.text()
+
+        block_scripts = [
+            "scriptBus.js",
+            "disable-devtool@latest",
+            "start_scriptBus.js",
+            "disable-adblock",
+            "adManager.js"
+        ]
+        for script in block_scripts:
+            html = html.replace(f'<script src="{script}"></script>', '')
+
+        await page.setContent(html)
 
         playlist_url = None
 
         async def handle_request(request):
             nonlocal playlist_url
-            block_scripts = [
-                "scriptBus.js",
-                "disable-devtool@latest",
-                "start_scriptBus.js",
-                "disable-adblock",
-                "adManager.js"
-            ]
-
-            if any(script in request.url for script in block_scripts):
-                await request.abort()
-                return
-
             if ".m3u8?" in request.url:
                 playlist_url = request.url
 
-            await request.continue_()
-
         page.on('request', lambda req: asyncio.create_task(handle_request(req)))
 
-        await page.goto(channel_page_url, {'waitUntil': 'networkidle2'})
         await asyncio.sleep(5)
         await browser.close()
 
@@ -49,7 +47,6 @@ async def fetch_new_stream_url(channel_page_url):
     except Exception as e:
         logging.error(f"Failed to fetch stream URL: {e}")
         return None
-
 
 async def update_m3u_file(m3u_path, channel_updates):
     try:
