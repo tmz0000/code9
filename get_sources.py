@@ -7,6 +7,7 @@ logging.basicConfig(level=logging.INFO)
 
 async def fetch_new_stream_url(channel_page_url):
     try:
+        # Launch browser in headless mode
         browser = await pyppeteer.launch(
             headless=True,
             args=[
@@ -22,25 +23,31 @@ async def fetch_new_stream_url(channel_page_url):
         )
         page = await browser.newPage()
 
+        # Enable request interception
         await page.setRequestInterception(True)
+
+        # Initialize playlist URL variable
         playlist_url = None
 
+        # Handle request interception
         async def handle_request(request):
             nonlocal playlist_url
             block_keywords = ["scriptBus", "disable-devtool", "disable-adblock", "adManager"]
 
             if any(keyword in request.url for keyword in block_keywords):
-                logging.info(f"Blocking: {request.url}")
+                logging.info(f"Blocking request: {request.url}")
                 await request.abort()
                 return
 
             if ".m3u8?" in request.url:
                 playlist_url = request.url
+                logging.info(f"Captured playlist URL: {playlist_url}")
 
-            await request.continue_()
+            await request.continue_()  # Continue the request
 
         page.on('request', lambda req: asyncio.create_task(handle_request(req)))
 
+        # Navigate to the channel page
         try:
             await page.goto(channel_page_url, {'waitUntil': 'networkidle2', 'timeout': 30000})
         except Exception as e:
@@ -54,10 +61,12 @@ async def fetch_new_stream_url(channel_page_url):
                 break
             await asyncio.sleep(1)
 
+        # Close the browser
         await browser.close()
 
+        # Log results
         if playlist_url and playlist_url.endswith(".m3u8"):
-            logging.info(f"Found playlist URL: {playlist_url}")
+            logging.info(f"Found valid playlist URL: {playlist_url}")
         else:
             logging.warning(f"No valid playlist URL found for {channel_page_url}")
 
@@ -66,6 +75,7 @@ async def fetch_new_stream_url(channel_page_url):
     except Exception as e:
         logging.error(f"Failed to fetch stream URL: {e}")
         return None
+
 
 
 async def update_m3u_file(m3u_path, channel_updates):
