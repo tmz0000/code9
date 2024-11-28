@@ -36,18 +36,21 @@ async def fetch_new_stream_url(channel_page_url):
             async def handle_route(route, request):
                 nonlocal playlist_url
                 request_url = request.url
-
+            
+                # Log every request URL
+                logging.info(f"Request URL: {request_url}")
+            
                 # Check if request URL matches any block patterns
                 if any(pattern.lower() in request_url.lower() for pattern in block_patterns):
                     logging.info(f"Blocked script due to pattern: {request_url}")
                     await route.abort()
                     return
-
+            
                 # Check for playlist URL
                 if ".m3u8?" in request_url:
                     playlist_url = request_url
                     logging.info(f"Captured playlist URL: {playlist_url}")
-
+            
                 # Continue with the request
                 await route.continue_()
 
