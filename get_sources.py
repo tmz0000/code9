@@ -3,70 +3,11 @@ import asyncio
 import logging
 import os
 import re
-import random
-import tracemalloc
 
-tracemalloc.start()
-
-# Logging setup
 logging.basicConfig(level=logging.INFO)
-
-# User Agent list
-user_agents = [
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Safari/537.36",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 11_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Safari/537.36",
-    # Add more User Agents as needed
-]
-
-# Proxy list
-proxies = [
-    "http://156.233.73.135:3128",
-    "http://156.253.166.153:3128",
-    "http://156.228.183.114:3128",
-    "http://156.228.94.153:3128",
-    "http://156.228.124.69:3128",
-    "http://156.233.85.147:3128",
-    "http://104.167.30.234:3128",
-    "http://104.207.43.152:3128",
-    "http://156.228.102.47:3128",
-    "http://156.253.177.201:3128",
-    "http://156.228.105.46:3128",
-    "http://156.228.176.111:3128",
-    "http://156.228.178.35:3128",
-    "http://104.207.49.69:3128",
-    "http://156.253.172.227:3128",
-    "http://154.213.194.230:3128",
-    "http://156.228.97.71:3128",
-    "http://156.228.98.196:3128",
-    "http://156.240.99.239:3128",
-    "http://104.207.54.253:3128",
-    "http://104.207.62.124:3128",
-    "http://156.228.91.52:3128",
-    "http://154.94.12.82:3128",
-    "http://156.228.182.180:3128",
-    "http://104.167.25.26:3128",
-    "http://156.253.166.126:3128",
-    "http://154.213.195.217:3128",
-    "http://156.253.179.212:3128",
-    "http://154.213.204.254:3128",
-    "http://104.207.56.253:3128",
-    "http://104.207.60.117:3128",
-    "http://45.202.76.38:3128",
-    "http://154.213.193.165:3128",
-    "http://156.233.86.148:3128",
-    "http://156.253.168.213:3128",
-    "http://104.207.44.3:3128"
-]
 
 async def fetch_new_stream_url(channel_page_url):
     try:
-        # Rotate User Agent
-        user_agent = random.choice(user_agents)
-        
-        # Rotate proxy
-        proxy = random.choice(proxies)
-        
-        # Launch browser with Stealth Mode and custom headers
         browser = await pyppeteer.launch(
             headless=True,
             args=[
@@ -78,61 +19,38 @@ async def fetch_new_stream_url(channel_page_url):
                 '--no-zygote',
                 '--single-process',
                 '--disable-gpu',
-            ],
-            defaultViewport=None,
-            dumpio=True
+            ]
         )
         page = await browser.newPage()
-        await page.setUserAgent(user_agent)
-        await page.setExtraHTTPHeaders({
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-            "Accept-Language": "en-US,en;q=0.5",
-            # Add more headers as needed
-        })
         
-        # Enable Stealth Mode
-        await page.evaluateOnNewDocument(
-            """() => {
-                Object.defineProperty(navigator, 'webdriver', {
-                    get: () => false,
-                });
-            }"""
-        )
-        
-        # Set proxy
+        # Enable request interception
         await page.setRequestInterception(True)
-        page.on("request", lambda req: asyncio.create_task(req.continue_({"url": req.url})))
         
-        # Create CDP session
         client = await page.target.createCDPSession()
         await client.send("Fetch.enable", {"patterns": [{"urlPattern": "*"}]})
         
-        # Handle requests
         playlist_url = None
+        
         async def handle_request(event):
             nonlocal playlist_url
             request_id = event.get("requestId")
             request_url = event.get("request", {}).get("url", "")
-            
-            # Block scripts
+
             block_patterns = ["start_scriptBus", "scriptBus", "disable-devtool", "disable-adblock", "adManager"]
             for pattern in block_patterns:
                 if pattern.lower() in request_url.lower():
                     logging.info(f"Blocked script due to pattern '{pattern}': {request_url}")
                     await client.send("Fetch.failRequest", {"requestId": request_id, "errorReason": "BlockedByClient"})
                     return
-            
-            # Capture playlist URL
+
             if ".m3u8?" in request_url:
                 playlist_url = request_url
                 logging.info(f"Captured playlist URL: {playlist_url}")
-            
-            # Continue request
+
             await client.send("Fetch.continueRequest", {"requestId": request_id})
         
         client.on("Fetch.requestPaused", lambda event: asyncio.create_task(handle_request(event)))
         
-        # Navigate to page
         try:
             await page.goto(channel_page_url, {'waitUntil': 'networkidle2', 'timeout': 30000})
         except Exception as e:
@@ -140,17 +58,15 @@ async def fetch_new_stream_url(channel_page_url):
             await browser.close()
             return None
         
-        # Wait for playlist URL
+        # Wait dynamically for the playlist URL
         max_wait_time = 10  # seconds
         waited_time = 0
         while not playlist_url and waited_time < max_wait_time:
             await asyncio.sleep(1)
             waited_time += 1
         
-        # Close browser
         await browser.close()
         
-        # Return playlist URL
         if playlist_url and ".m3u8?" in playlist_url:
             logging.info(f"Found valid playlist URL: {playlist_url}")
         else:
@@ -160,6 +76,7 @@ async def fetch_new_stream_url(channel_page_url):
     except Exception as e:
         logging.error(f"Failed to fetch stream URL: {e}")
         return None
+
 
 async def update_m3u_file(m3u_path, channel_updates):
     if not os.path.exists(m3u_path):
@@ -200,6 +117,7 @@ async def update_m3u_file(m3u_path, channel_updates):
     except Exception as e:
         logging.error(f"Failed to update M3U file: {e}")
 
+
 async def main():
     m3u_path = 's18.m3u'
     channel_updates = {
@@ -220,7 +138,6 @@ async def main():
     }
     await update_m3u_file(m3u_path, channel_updates)
 
+
 if __name__ == "__main__":
     asyncio.run(main())
-
-tracemalloc.stop()
