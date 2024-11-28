@@ -26,30 +26,26 @@ async def fetch_new_stream_url(channel_page_url):
         # Enable request interception
         await page.setRequestInterception(True)
         
-        client = await page.target.createCDPSession()
-        await client.send("Fetch.enable", {"patterns": [{"urlPattern": "*"}]})
-        
         playlist_url = None
         
-        async def handle_request(event):
+        async def handle_request(request):
             nonlocal playlist_url
-            request_id = event.get("requestId")
-            request_url = event.get("request", {}).get("url", "")
+            request_url = request.url
 
             block_patterns = ["start_scriptBus", "scriptBus", "disable-devtool", "disable-adblock", "adManager"]
             for pattern in block_patterns:
                 if pattern.lower() in request_url.lower():
                     logging.info(f"Blocked script due to pattern '{pattern}': {request_url}")
-                    await client.send("Fetch.failRequest", {"requestId": request_id, "errorReason": "BlockedByClient"})
+                    await request.abort()
                     return
 
             if ".m3u8?" in request_url:
                 playlist_url = request_url
                 logging.info(f"Captured playlist URL: {playlist_url}")
 
-            await client.send("Fetch.continueRequest", {"requestId": request_id})
+            await request.continue_()
         
-        client.on("Fetch.requestPaused", lambda event: asyncio.create_task(handle_request(event)))
+        page.on("request", handle_request)
         
         try:
             await page.goto(channel_page_url, {'waitUntil': 'networkidle2', 'timeout': 30000})
