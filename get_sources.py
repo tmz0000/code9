@@ -10,7 +10,7 @@ async def fetch_new_stream_url(channel_page_url):
     try:
         async with async_playwright() as p:
             browser = await p.chromium.launch(
-                headless=True,
+                headless=False,  # Set to False for debugging
                 args=[
                     '--no-sandbox',
                     '--disable-setuid-sandbox',
@@ -28,15 +28,23 @@ async def fetch_new_stream_url(channel_page_url):
             )
             page = await context.new_page()
 
+            # Apply stealth techniques
+            from playwright_stealth import stealth_async
+            await stealth_async(page)
+
+            # Capture console messages
+            page.on("console", lambda msg: logging.info(f"Console: {msg.type} - {msg.text}"))
+
             playlist_url = None
 
-            # Define the block patterns as regular expressions
+            # Define the block patterns (adjust as needed)
             block_patterns = [
-                r".*/start_scriptBus\.js$",  # Matches any URL ending with /start_scriptBus.js
-                r".*/scriptBus\.js$",        # Matches any URL ending with /scriptBus.js
-                r".*/adManager\.js$",        # Matches any URL ending with /adManager.js
-                r".*disable-devtool.*",      # Matches any URL containing disable-devtool
-                r".*disable-adblock.*",      # Matches any URL containing disable-adblock
+                r".*disable-devtool.*",
+                r".*disable-adblock.*",
+                # Temporarily disable other patterns to test
+                # r".*/start_scriptBus\.js$",
+                # r".*/scriptBus\.js$",
+                # r".*/adManager\.js$",
             ]
 
             # Intercept requests
@@ -44,8 +52,8 @@ async def fetch_new_stream_url(channel_page_url):
                 nonlocal playlist_url
                 request_url = request.url
 
-                # Log every request URL
-                logging.info(f"Request URL: {request_url}")
+                # Log every request URL with resource type
+                logging.info(f"Request URL: {request_url}, Resource Type: {request.resource_type}")
 
                 # Check if request URL matches any block patterns using regex (case-insensitive)
                 if any(re.match(pattern, request_url, re.IGNORECASE) for pattern in block_patterns):
@@ -54,7 +62,7 @@ async def fetch_new_stream_url(channel_page_url):
                     return
 
                 # Check for playlist URL
-                if ".m3u8?" in request_url:
+                if ".m3u8?" in request_url or ".m3u8" in request_url:
                     playlist_url = request_url
                     logging.info(f"Captured playlist URL: {playlist_url}")
 
@@ -65,14 +73,24 @@ async def fetch_new_stream_url(channel_page_url):
             await page.route("**/*", handle_route)
 
             try:
-                await page.goto(channel_page_url, wait_until='domcontentloaded', timeout=60000)
+                await page.goto(channel_page_url, wait_until='networkidle', timeout=60000)
             except Exception as e:
                 logging.error(f"Error loading page {channel_page_url}: {e}")
                 await browser.close()
                 return None
 
+            # Simulate user interaction
+            try:
+                # Wait for the play button or video element
+                await page.wait_for_selector('button.play, video', timeout=10000)
+                # Click the play button or video element
+                await page.click('button.play')  # Adjust the selector as needed
+                logging.info("Clicked the play button")
+            except Exception as e:
+                logging.warning(f"Could not interact with the video player: {e}")
+
             # Wait for the playlist URL to be captured
-            max_wait_time = 30  # seconds
+            max_wait_time = 60  # seconds
             waited_time = 0
             while not playlist_url and waited_time < max_wait_time:
                 await asyncio.sleep(1)
@@ -80,7 +98,7 @@ async def fetch_new_stream_url(channel_page_url):
 
             await browser.close()
 
-            if playlist_url and ".m3u8?" in playlist_url:
+            if playlist_url and ".m3u8" in playlist_url:
                 logging.info(f"Found valid playlist URL: {playlist_url}")
             else:
                 logging.warning(f"No valid playlist URL found for {channel_page_url}")
@@ -89,6 +107,7 @@ async def fetch_new_stream_url(channel_page_url):
     except Exception as e:
         logging.error(f"Failed to fetch stream URL: {e}")
         return None
+
 
 
 async def update_m3u_file(m3u_path, channel_updates):
