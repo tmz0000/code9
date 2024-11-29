@@ -12,16 +12,14 @@ async def fetch_new_stream_url(channel_page_url):
             context = await browser.new_context()
             page = await context.new_page()
 
-            playlist_url = None
+            playlist_urls = []
 
             async def handle_route(route, request):
-                nonlocal playlist_url
                 request_url = request.url
-                logging.info(f"Request URL: {request_url}")
                 
                 if ".m3u8?" in request_url:
-                    playlist_url = request_url
-                    logging.info(f"Captured playlist URL: {playlist_url}")
+                    playlist_urls.append(request_url)
+                    logging.info(f"Found potential playlist URL: {request_url}")
                 
                 await route.continue_()
 
@@ -37,11 +35,13 @@ async def fetch_new_stream_url(channel_page_url):
             await asyncio.sleep(10)  # Wait for 10 seconds to capture the playlist URL
             await browser.close()
 
-            if playlist_url and ".m3u8?" in playlist_url:
-                logging.info(f"Found valid playlist URL: {playlist_url}")
+            if playlist_urls:
+                logging.info(f"Found {len(playlist_urls)} potential playlist URLs:")
+                for url in playlist_urls:
+                    logging.info(url)
             else:
                 logging.warning(f"No valid playlist URL found for {channel_page_url}")
-            return playlist_url
+            return playlist_urls
 
     except Exception as e:
         logging.error(f"Failed to fetch stream URL: {e}")
