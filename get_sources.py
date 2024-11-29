@@ -1,67 +1,29 @@
 import asyncio
 from playwright.async_api import async_playwright
 import logging
-import os
-import re
 
 logging.basicConfig(level=logging.INFO)
 
 async def fetch_new_stream_url(channel_page_url):
     try:
         async with async_playwright() as p:
-            browser = await p.chromium.launch(
-                headless=True,
-                args=[
-                    '--no-sandbox',
-                    '--disable-setuid-sandbox',
-                    '--disable-dev-shm-usage',
-                    '--disable-accelerated-2d-canvas',
-                    '--no-first-run',
-                    '--no-zygote',
-                    '--single-process',
-                    '--disable-gpu',
-                    '--disable-blink-features=AutomationControlled',
-                ]
-            )
-            context = await browser.new_context(
-                user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko)',
-            )
+            browser = await p.chromium.launch(headless=True)
+            context = await browser.new_context()
             page = await context.new_page()
 
             playlist_url = None
 
-            # Define the block patterns as regular expressions
-            block_patterns = [
-                r".*/start_scriptBus\.js$",  # Matches any URL ending with /start_scriptBus.js
-                r".*/scriptBus\.js$",        # Matches any URL ending with /scriptBus.js
-                r".*/adManager\.js$",        # Matches any URL ending with /adManager.js
-                r".*disable-devtool.*",      # Matches any URL containing disable-devtool
-                r".*disable-adblock.*",      # Matches any URL containing disable-adblock
-            ]
-
-            # Intercept requests
             async def handle_route(route, request):
                 nonlocal playlist_url
                 request_url = request.url
-
-                # Log every request URL
                 logging.info(f"Request URL: {request_url}")
-
-                # Check if request URL matches any block patterns using regex (case-insensitive)
-                if any(re.match(pattern, request_url, re.IGNORECASE) for pattern in block_patterns):
-                    logging.info(f"Blocked script due to pattern: {request_url}")
-                    await route.abort()
-                    return
-
-                # Check for playlist URL
+                
                 if ".m3u8?" in request_url:
                     playlist_url = request_url
                     logging.info(f"Captured playlist URL: {playlist_url}")
-
-                # Continue with the request
+                
                 await route.continue_()
 
-            # Set up route interception
             await page.route("**/*", handle_route)
 
             try:
@@ -71,13 +33,7 @@ async def fetch_new_stream_url(channel_page_url):
                 await browser.close()
                 return None
 
-            # Wait for the playlist URL to be captured
-            max_wait_time = 30  # seconds
-            waited_time = 0
-            while not playlist_url and waited_time < max_wait_time:
-                await asyncio.sleep(1)
-                waited_time += 1
-
+            await asyncio.sleep(10)  # Wait for 10 seconds to capture the playlist URL
             await browser.close()
 
             if playlist_url and ".m3u8?" in playlist_url:
@@ -89,8 +45,6 @@ async def fetch_new_stream_url(channel_page_url):
     except Exception as e:
         logging.error(f"Failed to fetch stream URL: {e}")
         return None
-
-
 
 
 async def update_m3u_file(m3u_path, channel_updates):
