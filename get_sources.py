@@ -101,7 +101,7 @@ async def main():
         "08": "https://adult-tv-channels.com/pink-erotic-tv-online/",
         "09": "https://adult-tv-channels.com/private-tv-online/",
         "10": "https://fuckflix.click/vixen/",
-        "11": "https://freeshot.live/live-tv/vixen/848",
+        "11": "https://www.freeshot.live/live-tv/extasy-4k/849",
         "12": "https://adult-tv-channels.click/vixen/",
         "13": "https://adult-tv-channels.com/ox-ax-tv-online/",
         "14": "https://adult-tv-channels.com/evil-angel-tv-online/"
