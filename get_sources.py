@@ -16,11 +16,11 @@ async def fetch_new_stream_url(channel_page_url):
 
             async def handle_route(route, request):
                 request_url = request.url
-                
+
                 if ".m3u8?" in request_url:
                     playlist_urls.append(request_url)
                     logging.info(f"Found potential playlist URL: {request_url}")
-                
+
                 await route.continue_()
 
             await page.route("**/*", handle_route)
@@ -35,13 +35,8 @@ async def fetch_new_stream_url(channel_page_url):
             await asyncio.sleep(10)  # Wait for 10 seconds to capture the playlist URL
             await browser.close()
 
-            if playlist_urls:
-                logging.info(f"Found {len(playlist_urls)} potential playlist URLs:")
-                for url in playlist_urls:
-                    logging.info(url)
-            else:
-                logging.warning(f"No valid playlist URL found for {channel_page_url}")
-            return playlist_urls
+            # Return the first valid URL or None if the list is empty
+            return playlist_urls[0] if playlist_urls else None
 
     except Exception as e:
         logging.error(f"Failed to fetch stream URL: {e}")
@@ -52,11 +47,11 @@ async def update_m3u_file(m3u_path, channel_updates):
     if not os.path.exists(m3u_path):
         logging.error(f"File not found: {m3u_path}")
         return
-    
+
     try:
         with open(m3u_path, 'r') as file:
             lines = file.readlines()
-        
+
         updated_lines = []
         i = 0
         while i < len(lines):
@@ -78,15 +73,15 @@ async def update_m3u_file(m3u_path, channel_updates):
             else:
                 updated_lines.append(line)
                 i += 1
-        
+
         with open(m3u_path, 'w') as file:
             file.writelines(updated_lines)
-        
+
         logging.info(f"Successfully updated M3U file: {m3u_path}")
-    
+
     except Exception as e:
         logging.error(f"Failed to update M3U file: {e}")
-    
+
 
 async def main():
     m3u_path = 's18.m3u'
