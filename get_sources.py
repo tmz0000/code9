@@ -95,7 +95,7 @@ async def main():
         "07": "https://adult-tv-channels.com/extasy-tv-online/",
         "08": "https://adult-tv-channels.com/pink-erotic-tv-online/",
         "09": "https://adult-tv-channels.com/private-tv-online/",
-        "10": "https://fuckflix.click/vixen/",
+        "10": "http://hochu.tv/babes-tv.html",
         "11": "http://sweet-tv.net/babes-tv.html",
         "12": "https://adult-tv-channels.click/vixen/",
         "13": "https://adult-tv-channels.com/ox-ax-tv-online/",
