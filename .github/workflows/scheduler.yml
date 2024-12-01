@@ -2,7 +2,7 @@ name: Update Scheduler
 
 on:
   schedule:
-    - cron: '*/5 * * * *'
+    - cron: '*/50 * * * *'
   workflow_dispatch:
 
 permissions:
