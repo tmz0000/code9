@@ -8,7 +8,7 @@ import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 logging.basicConfig(level=logging.INFO)
 
-async def fetch_new_stream_url(channel_page_url):
+async def fetch_new_stream_url(channel_info):
     try:
         async with async_playwright() as p:
             browser = await p.chromium.launch(headless=False)
@@ -29,13 +29,18 @@ async def fetch_new_stream_url(channel_page_url):
             await page.route("**/*", handle_route)
 
             try:
-                await page.goto(channel_page_url, wait_until='domcontentloaded', timeout=60000)
+                await page.goto(channel_info["url"], wait_until='domcontentloaded', timeout=60000)
             except Exception as e:
-                logging.error(f"Error loading page {channel_page_url}: {e}")
+                logging.error(f"Error loading page {channel_info['url']}: {e}")
                 await browser.close()
                 return None
 
             await asyncio.sleep(30)  # Wait for 30 seconds to capture the playlist URL
+
+            if channel_info.get("hold_session", False):
+                await page.reload()
+                # Your YAML schedule will handle session duration
+
             await browser.close()
 
             # Validate potential m3u8 URLs
@@ -55,7 +60,7 @@ async def fetch_new_stream_url(channel_page_url):
             if valid_url:
                 return valid_url
             else:
-                logging.error(f"No valid playlist URL found for {channel_page_url}")
+                logging.error(f"No valid playlist URL found for {channel_info['url']}")
                 return None
 
     except Exception as e:
@@ -106,23 +111,66 @@ async def update_m3u_file(m3u_path, channel_updates):
 async def main():
     m3u_path = 's18.m3u'
     channel_updates = {
-        "01": "https://adult-tv-channels.com/redlight-hd-online/",
-        "02": "https://adult-tv-channels.com/dorcel-tv-online/",
-        "03": "https://adult-tv-channels.com/penthouse-passion-online/",
-        "04": "https://adult-tv-channels.com/penthouse-passion-tv-online/",
-        "05": "https://adult-tv-channels.com/vivid-tv-online/",
-        "06": "https://adult-tv-channels.com/eroxxx-hd-tv-online/",
-        "07": "https://adult-tv-channels.com/extasy-tv-online/",
-        "08": "https://adult-tv-channels.com/pink-erotic-tv-online/",
-        "09": "https://adult-tv-channels.com/private-tv-online/",
-        "10": "http://hochu.tv/babes-tv.html",
-        "11": "http://sweet-tv.net/babes-tv.html",
-        "12": "https://adult-tv-channels.click/vixen/",
-        "13": "https://adult-tv-channels.com/ox-ax-tv-online/",
-        "14": "https://adult-tv-channels.com/evil-angel-tv-online/"
-    }
-    await update_m3u_file(m3u_path, channel_updates)
+        "01": {
+            "url": "https://adult-tv-channels.com/redlight-hd-online/",
+            "hold_session": False
+        },
+        "02": {
+            "url": "https://adult-tv-channels.com/dorcel-tv-online/",
+            "hold_session": False
+        },
+        "03": {
+            "url": "https://adult-tv-channels.com/penthouse-passion-online/",
+            "hold_session": False
+        },
+        "04": {
+            "url": "https://adult-tv-channels.com/penthouse-passion-tv-online/",
+            "hold_session": False
+        },
+        "05": {
+            "url": "https://adult-tv-channels.com/vivid-tv-online/",
+            "hold_session": False
+        },
+        "06": {
+            "url": "https://adult-tv-channels.com/eroxxx-hd-tv-online/",
+            "hold_session": False
+        },
+        "07": {
+            "url": "https://adult-tv-channels.com/extasy-tv-online/",
+            "hold_session": False
+        },
+        "08": {
+            "url": "https://adult-tv-channels.com/pink-erotic-tv-online/",
+            "hold_session": False
+        },
+        "09": {
+            "url": "https://adult-tv-channels.com/private-tv-online/",
+            "hold_session": False
+        },
+        "10": {
+            "url": "http://hochu.tv/babes-tv.html",
+            "hold_session": True
+        },
+        "11": {
+            "url": "http://sweet-tv.net/babes-tv.html",
+            "hold_session": False
+        },
+        "12": {
+            "url": "https://adult-tv-channels.click/vixen/",
+            "hold_session": False
+        },
+        "13": {
+            "url": "https://adult-tv-channels.com/ox-ax-tv-online/",
+            "hold_session": False
+        },
+        "14": {
+            "url": "https://adult-tv-channels.com/evil-angel-tv-online/",
+            "hold_session": False
+        }
+
+   }
+       await update_m3u_file(m3u_path, channel_updates)
 
 
-if __name__ == "__main__":
-    asyncio.run(main())
+   if __name__ == "__main__":
+       asyncio.run(main())
