@@ -35,6 +35,7 @@ jobs:
           playwright install
           pip install fastapi uvicorn
           pip install playwright-stealth
+          pip install requests
 
       - name: Run update script
         run: |
