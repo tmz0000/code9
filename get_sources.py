@@ -2,6 +2,7 @@ import asyncio
 from playwright.async_api import async_playwright
 import logging
 import os
+import requests
 
 logging.basicConfig(level=logging.INFO)
 
@@ -35,8 +36,25 @@ async def fetch_new_stream_url(channel_page_url):
             await asyncio.sleep(30)  # Wait for 30 seconds to capture the playlist URL
             await browser.close()
 
-            # Return the first valid URL or None if the list is empty
-            return playlist_urls[0] if playlist_urls else None
+            # Validate potential m3u8 URLs
+            valid_url = None
+            for url in playlist_urls:
+                try:
+                    response = requests.head(url, timeout=10)
+                    if response.status_code == 200:
+                        logging.info(f"Valid playlist URL: {url}")
+                        valid_url = url
+                        break
+                    else:
+                        logging.warning(f"Invalid playlist URL: {url}")
+                except requests.exceptions.RequestException as e:
+                    logging.error(f"Error validating URL {url}: {e}")
+
+            if valid_url:
+                return valid_url
+            else:
+                logging.error(f"No valid playlist URL found for {channel_page_url}")
+                return None
 
     except Exception as e:
         logging.error(f"Failed to fetch stream URL: {e}")
