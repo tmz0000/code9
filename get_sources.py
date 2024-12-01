@@ -3,7 +3,9 @@ from playwright.async_api import async_playwright
 import logging
 import os
 import requests
+import urllib3
 
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 logging.basicConfig(level=logging.INFO)
 
 async def fetch_new_stream_url(channel_page_url):
@@ -40,7 +42,7 @@ async def fetch_new_stream_url(channel_page_url):
             valid_url = None
             for url in playlist_urls:
                 try:
-                    response = requests.head(url, timeout=10)
+                    response = requests.head(url, timeout=10, verify=False)
                     if response.status_code == 200:
                         logging.info(f"Valid playlist URL: {url}")
                         valid_url = url
