@@ -37,7 +37,8 @@ jobs:
           pip install playwright-stealth
 
       - name: Run update script
-        run: python get_sources.py
+        run: |
+          xvfb-run python get_sources.py
 
       - name: Commit and push changes
         run: |
