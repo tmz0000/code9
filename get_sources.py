@@ -8,7 +8,7 @@ logging.basicConfig(level=logging.INFO)
 async def fetch_new_stream_url(channel_page_url):
     try:
         async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=True)
+            browser = await p.chromium.launch(headless=False)
             context = await browser.new_context()
             page = await context.new_page()
 
@@ -32,7 +32,7 @@ async def fetch_new_stream_url(channel_page_url):
                 await browser.close()
                 return None
 
-            await asyncio.sleep(10)  # Wait for 10 seconds to capture the playlist URL
+            await asyncio.sleep(30)  # Wait for 30 seconds to capture the playlist URL
             await browser.close()
 
             # Return the first valid URL or None if the list is empty
