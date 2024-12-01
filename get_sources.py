@@ -29,7 +29,7 @@ async def fetch_new_stream_url(channel_info):
             await page.route("**/*", handle_route)
 
             try:
-                await page.goto(channel_info["url"], wait_until='networkidle0', timeout=5000)
+                await page.goto(channel_info["url"], wait_until='networkidle', timeout=5000)
             except Exception as e:
                 logging.error(f"Error loading page {channel_info['url']}: {e}")
                 await browser.close()
