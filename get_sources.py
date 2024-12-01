@@ -30,7 +30,7 @@ async def fetch_new_stream_url(channel_page_url):
 
             try:
                 # Load the page quickly without waiting for unnecessary resources
-                await page.goto(channel_page_url, wait_until='domcontentloaded', timeout=20000)
+                await page.goto(channel_page_url, wait_until='networkidle', timeout=20000)
             except Exception as e:
                 logging.error(f"Error loading page {channel_page_url}: {e}")
                 await browser.close()
