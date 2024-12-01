@@ -11,7 +11,7 @@ logging.basicConfig(level=logging.INFO)
 async def fetch_new_stream_url(channel_info):
     try:
         async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=True)
+            browser = await p.chromium.launch(headless=False)
             context = await browser.new_context()
             page = await context.new_page()
 
@@ -29,7 +29,7 @@ async def fetch_new_stream_url(channel_info):
             await page.route("**/*", handle_route)
 
             try:
-                await page.goto(channel_info["url"], wait_until='domcontentloaded', timeout=60000)
+                await page.goto(channel_info["url"], wait_until='domcontentloaded', timeout=20000)
             except Exception as e:
                 logging.error(f"Error loading page {channel_info['url']}: {e}")
                 await browser.close()
