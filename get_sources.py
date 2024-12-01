@@ -29,7 +29,7 @@ async def fetch_new_stream_url(channel_info):
             await page.route("**/*", handle_route)
 
             try:
-                await page.goto(channel_info["url"], wait_until='domcontentloaded', timeout=2000)
+                await page.goto(channel_info["url"], wait_until='domcontentloaded', timeout=60000)
             except Exception as e:
                 logging.error(f"Error loading page {channel_info['url']}: {e}")
                 await browser.close()
@@ -46,7 +46,7 @@ async def fetch_new_stream_url(channel_info):
             valid_url = None
             for url in playlist_urls:
                 try:
-                    response = requests.head(url, timeout=30, verify=False)
+                    response = requests.head(url, timeout=10, verify=False)
                     if response.status_code == 200:
                         logging.info(f"Valid playlist URL: {url}")
                         valid_url = url
