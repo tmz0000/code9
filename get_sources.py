@@ -17,7 +17,7 @@ async def fetch_new_stream_url(channel_page_url):
             async def handle_route(route, request):
                 request_url = request.url
 
-                if ".m3u8?" in request_url:
+                if ".m3u8" in request_url:
                     playlist_urls.append(request_url)
                     logging.info(f"Found potential playlist URL: {request_url}")
 
