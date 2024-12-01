@@ -11,7 +11,7 @@ logging.basicConfig(level=logging.INFO)
 async def fetch_new_stream_url(channel_info):
     try:
         async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=False)
+            browser = await p.chromium.launch(headless=True)
             context = await browser.new_context()
             page = await context.new_page()
 
@@ -39,7 +39,6 @@ async def fetch_new_stream_url(channel_info):
 
             if channel_info.get("hold_session", False):
                 await page.reload()
-                # Your YAML schedule will handle session duration
 
             await browser.close()
 
@@ -167,10 +166,9 @@ async def main():
             "url": "https://adult-tv-channels.com/evil-angel-tv-online/",
             "hold_session": False
         }
+    }
+    await update_m3u_file(m3u_path, channel_updates)
 
-   }
-       await update_m3u_file(m3u_path, channel_updates)
 
-
-   if __name__ == "__main__":
-       asyncio.run(main())
+if __name__ == "__main__":
+    asyncio.run(main())
