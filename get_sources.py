@@ -8,54 +8,58 @@ import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 logging.basicConfig(level=logging.INFO)
 
-# Function to fetch and validate m3u8 URL
-async def fetch_new_stream_url(channel_page_url):
-    try:
-        async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=False)  # Headless for speed
-            context = await browser.new_context()
-            page = await context.new_page()
 
-            playlist_urls = []
+# Function to fetch and validate m3u8 URL with retries
+async def fetch_new_stream_url(channel_page_url, retries=3):
+    for attempt in range(retries):
+        try:
+            async with async_playwright() as p:
+                browser = await p.chromium.launch(headless=False)
+                context = await browser.new_context()
+                page = await context.new_page()
 
-            # Capture all .m3u8 requests
-            async def handle_route(route, request):
-                request_url = request.url
-                if ".m3u8" in request_url:
-                    playlist_urls.append(request_url)
-                    logging.info(f"Found potential playlist URL: {request_url}")
-                await route.continue_()
+                playlist_urls = []
 
-            await page.route("**/*", handle_route)
+                # Capture all .m3u8 requests
+                async def handle_route(route, request):
+                    request_url = request.url
+                    if ".m3u8" in request_url:
+                        playlist_urls.append(request_url)
+                        logging.info(f"Found potential playlist URL: {request_url}")
+                    await route.continue_()
 
-            try:
-                # Load the page quickly without waiting for unnecessary resources
-                await page.goto(channel_page_url, wait_until='networkidle', timeout=20000)
-            except Exception as e:
-                logging.error(f"Error loading page {channel_page_url}: {e}")
-                await browser.close()
-                return None
+                await page.route("**/*", handle_route)
 
-            await browser.close()
-
-            # Validate m3u8 URLs
-            valid_url = None
-            for url in playlist_urls:
                 try:
-                    response = requests.head(url, timeout=5, verify=False)
-                    if response.status_code == 200:
-                        logging.info(f"Valid playlist URL: {url}")
-                        valid_url = url
-                        break
-                    else:
-                        logging.warning(f"Invalid playlist URL: {url}")
-                except requests.exceptions.RequestException as e:
-                    logging.error(f"Error validating URL {url}: {e}")
+                    # Load the page with slightly extended time for dynamic content
+                    await page.goto(channel_page_url, wait_until='networkidle', timeout=30000)
+                except Exception as e:
+                    logging.error(f"Error loading page {channel_page_url} on attempt {attempt + 1}: {e}")
+                    await browser.close()
+                    continue
 
-            return valid_url
-    except Exception as e:
-        logging.error(f"Failed to fetch stream URL: {e}")
-        return None
+                await asyncio.sleep(5)  # Reduced wait time for page interaction
+                await browser.close()
+
+                # Validate m3u8 URLs
+                for url in playlist_urls:
+                    try:
+                        response = requests.head(url, timeout=10, verify=False)
+                        if response.status_code == 200:
+                            logging.info(f"Valid playlist URL: {url}")
+                            return url  # Return valid URL immediately
+                        else:
+                            logging.warning(f"Invalid playlist URL: {url}")
+                    except requests.exceptions.RequestException as e:
+                        logging.error(f"Error validating URL {url}: {e}")
+
+        except Exception as e:
+            logging.error(f"Attempt {attempt + 1} failed for {channel_page_url}: {e}")
+
+        logging.warning(f"Retrying {channel_page_url} ({attempt + 1}/{retries})...")
+
+    logging.error(f"Failed to fetch stream URL for {channel_page_url} after {retries} attempts")
+    return None
 
 
 # Update M3U file
