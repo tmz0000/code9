@@ -8,10 +8,11 @@ import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 logging.basicConfig(level=logging.INFO)
 
+
 async def fetch_new_stream_url(channel_info):
     try:
         async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=False)
+            browser = await p.chromium.launch(headless=False)  # Keep browser visible for debugging
             context = await browser.new_context()
             page = await context.new_page()
 
@@ -35,10 +36,15 @@ async def fetch_new_stream_url(channel_info):
                 await browser.close()
                 return None
 
-            await asyncio.sleep(10)  # Wait for 10 seconds to capture the playlist URL
+            await asyncio.sleep(10)  # Wait for requests to complete
 
             if channel_info.get("hold_session", False):
-                await page.reload()
+                logging.info(f"Holding session open for {channel_info['url']}... Press Ctrl+C to stop.")
+                try:
+                    while True:
+                        await asyncio.sleep(30)  # Keep session alive indefinitely
+                except asyncio.CancelledError:
+                    logging.info("Session hold canceled, proceeding with cleanup.")
 
             await browser.close()
 
@@ -56,11 +62,7 @@ async def fetch_new_stream_url(channel_info):
                 except requests.exceptions.RequestException as e:
                     logging.error(f"Error validating URL {url}: {e}")
 
-            if valid_url:
-                return valid_url
-            else:
-                logging.error(f"No valid playlist URL found for {channel_info['url']}")
-                return None
+            return valid_url
 
     except Exception as e:
         logging.error(f"Failed to fetch stream URL: {e}")
@@ -148,7 +150,7 @@ async def main():
         },
         "10": {
             "url": "http://hochu.tv/babes-tv.html",
-            "hold_session": True
+            "hold_session": True  # Hold the session open for this channel
         },
         "11": {
             "url": "http://sweet-tv.net/babes-tv.html",
