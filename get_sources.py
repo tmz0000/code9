@@ -143,7 +143,8 @@ async def test_multiple_accesses(m3u8_url, num_sessions=10):
             logging.error(f"[Session {session_id}] Error accessing {url}: {e}")
             return False
 
-    async with aiohttp.ClientSession(headers=headers) as session:
+    connector = aiohttp.TCPConnector(verify_ssl=False)
+    async with aiohttp.ClientSession(connector=connector, headers=headers) as session:
         tasks = [access_m3u8(session, m3u8_url, i + 1) for i in range(num_sessions)]
         results = await asyncio.gather(*tasks)
 
