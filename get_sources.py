@@ -4,6 +4,7 @@ import logging
 import os
 import requests
 import urllib3
+import aiohttp
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 logging.basicConfig(level=logging.INFO)
