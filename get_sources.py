@@ -6,6 +6,7 @@ import requests
 import urllib3
 import aiohttp
 import re
+import nordvpn_api
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 logging.basicConfig(level=logging.INFO)
@@ -128,14 +129,11 @@ async def main():
 # Function to test multiple accesses
 async def test_multiple_accesses(m3u8_url, num_sessions=10):
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36",
-        "X-Forwarded-For": "86.62.30.103",  # UK IP address
-        "X-GeoIP-Country-Code": "GB",  # UK country code
-        "X-GeoIP-Region": "London",    # UK region
-        "X-GeoIP-City": "London",      # UK city
-        "X-GeoIP-Postal-Code": "EC1A", # UK postal code
-        "X-GeoIP-Time-Zone": "Europe/London"  # UK timezone
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36"
     }
+
+    nordvpn = nordvpn_api.NordVPN(username='tmzone@gmail.com', password='V34pN$h#Sx')
+    await nordvpn.connect(country='United Kingdom')
 
     async def access_m3u8(session, url, session_id):
         try:
@@ -178,6 +176,11 @@ async def test_multiple_accesses(m3u8_url, num_sessions=10):
             logging.info(f"[Session {i+1}] Stream details:")
             for stream in result:
                 logging.info(f"  Bitrate: {stream['bitrate']} kbps, Resolution: {stream['resolution']}")
+
+    try:
+        await nordvpn.disconnect()
+    except Exception as e:
+        logging.error(f"Error disconnecting NordVPN: {e}")
 
     return successful_accesses
 
