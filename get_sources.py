@@ -183,7 +183,7 @@ if __name__ == "__main__":
         logging.error(f"Error running main: {e}")
 
     try:
-        test_url = "https://ortepe.xyz:47269/tv/dorcel/playlist.m3u8?wmsAuthSign=c2VydmVyX3RpbWU9MTIvNS8yMDI0IDExOjUyOjA4IEFNJmhhc2hfdmFsdWU9UzVyV3J0NEl2MjdGb3AzQUcyYmVvUT09JnZhbGlkbWludXRlcz02MA=="
+        test_url = "http://rso.uspeh.sbs/va2VuPVtzdGJfdG9rZW5dIiwidWZ0IjoiMiIsInVmcCI6IjgwMzAiLCJzdHAiOiIxIiwiYWRsIjoiMTQiLCJsIjoiMDc3NjA4NjQiLCJwIjoiMDc3NjA4NjQ4NGVlNDg2NSIsImMiOiI0MjAiLCJ0IjoiMmE4MjhlYjJkNmZmOTUyZDg2OTU3OTQ4OTA5ZDUzNmEiLCJkIjoiMTYzMDg0IiwiciI6IjE2NjM1NiIsIm0iOiJ0diIsImR0IjoiMCJ9eyJ1IjoiaHR0cDovLzE5NS4yMTEuMjcuMTQ5Ojg4NjgvODAzMC9pbmRleC5tM3U4P3R/index.m3u8"
         asyncio.run(test_multiple_accesses(test_url, num_sessions=10))
     except Exception as e:
         logging.error(f"Error running test_multiple_accesses: {e}")
