@@ -125,3 +125,38 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+
+
+#  FOR A TESTTTTTTTTTTTTT ---------------------------------------------------------------------------------------
+async def test_multiple_accesses(m3u8_url, num_sessions=10):
+    import aiohttp
+
+    async def access_m3u8(url, session_id):
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, timeout=10) as response:
+                    if response.status == 200:
+                        logging.info(f"[Session {session_id}] Successfully accessed {url}")
+                        # Optionally, log first few lines of the response
+                        content = await response.text()
+                        lines = content.splitlines()[:5]
+                        for i, line in enumerate(lines):
+                            logging.info(f"[Session {session_id}] Line {i+1}: {line}")
+                        return True
+                    else:
+                        logging.warning(f"[Session {session_id}] Failed with status {response.status}")
+                        return False
+        except Exception as e:
+            logging.error(f"[Session {session_id}] Error accessing {url}: {e}")
+            return False
+
+    tasks = [access_m3u8(m3u8_url, i + 1) for i in range(num_sessions)]
+    results = await asyncio.gather(*tasks)
+
+    successful_accesses = sum(results)
+    logging.info(f"Total successful accesses: {successful_accesses}/{num_sessions}")
+    return successful_accesses
+
+
+    test_url = "https://example.com/path/to/playlist.m3u8"  # Replace with the actual URL
+        asyncio.run(test_multiple_accesses(test_url, num_sessions=10))
