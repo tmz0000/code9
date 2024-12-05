@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write  # Enable write permissions for the workflow
+  contents: write
 
 jobs:
   update_playlist:
@@ -16,8 +16,8 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
         with:
-          persist-credentials: true  # Ensure credentials are persisted for pushing
-          fetch-depth: 0  # Fetch all history for accurate changes
+          persist-credentials: true
+          fetch-depth: 0
 
       - name: Set up Git user
         run: |
@@ -34,8 +34,8 @@ jobs:
           pip install -U playwright
           playwright install
           pip install requests
-          pip install requests aiohttp
-          pip install nordvpn-api
+          pip install aiohttp
+          pip install nordvpn
 
       - name: Run update script
         run: |
