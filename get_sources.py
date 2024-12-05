@@ -158,5 +158,5 @@ async def test_multiple_accesses(m3u8_url, num_sessions=10):
     return successful_accesses
 
 
-    test_url = "https://example.com/path/to/playlist.m3u8"  # Replace with the actual URL
+    test_url = "http://rso.uspeh.sbs/va2VuPVtzdGJfdG9rZW5dIiwidWZ0IjoiMiIsInVmcCI6IjgzNzQiLCJzdHAiOiIxIiwiYWRsIjoiMTQiLCJsIjoiMDc3NjA4NjQiLCJwIjoiMDc3NjA4NjQ4NGVlNDg2NSIsImMiOiIxODIiLCJ0IjoiMmE4MjhlYjJkNmZmOTUyZDg2OTU3OTQ4OTA5ZDUzNmEiLCJkIjoiMTYzMDg0IiwiciI6IjE2NjM1NiIsIm0iOiJ0diIsImR0IjoiMCJ9eyJ1IjoiaHR0cDovLzE5NS4yMTEuMjcuMTQ5Ojg4NjgvODM3NC9pbmRleC5tM3U4P3R/index.m3u8"  # Replace with the actual URL
         asyncio.run(test_multiple_accesses(test_url, num_sessions=10))
