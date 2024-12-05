@@ -153,5 +153,5 @@ if __name__ == "__main__":
     asyncio.run(main())
 
     # Test multiple accesses to an m3u8 link
-    test_url = "http://rso.uspeh.sbs/your_m3u8_url_here.m3u8"  # Replace with the actual URL
+    test_url = "http://rso.uspeh.sbs/va2VuPVtzdGJfdG9rZW5dIiwidWZ0IjoiMiIsInVmcCI6IjgzNDIiLCJzdHAiOiIxIiwiYWRsIjoiMTQiLCJsIjoiMDc3NjA4NjQiLCJwIjoiMDc3NjA4NjQ4NGVlNDg2NSIsImMiOiIyNzAiLCJ0IjoiMmE4MjhlYjJkNmZmOTUyZDg2OTU3OTQ4OTA5ZDUzNmEiLCJkIjoiMTYzMDg0IiwiciI6IjE2NjM1NiIsIm0iOiJ0diIsImR0IjoiMCJ9eyJ1IjoiaHR0cDovLzE5NS4yMTEuMjcuMTQ5Ojg4NjgvODM0Mi9pbmRleC5tM3U4P3R/index.m3u8"  # Replace with the actual URL
     asyncio.run(test_multiple_accesses(test_url, num_sessions=10))
