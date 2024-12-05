@@ -123,8 +123,7 @@ async def main():
     await update_m3u_file(m3u_path, channel_updates)
 
 
-
-#  FOR A TESTTTTTTTTTTTTT ---------------------------------------------------------------------------------------
+# Function to test multiple accesses
 async def test_multiple_accesses(m3u8_url, num_sessions=10):
     import aiohttp
 
@@ -134,11 +133,6 @@ async def test_multiple_accesses(m3u8_url, num_sessions=10):
                 async with session.get(url, timeout=10) as response:
                     if response.status == 200:
                         logging.info(f"[Session {session_id}] Successfully accessed {url}")
-                        # Optionally, log first few lines of the response
-                        content = await response.text()
-                        lines = content.splitlines()[:5]
-                        for i, line in enumerate(lines):
-                            logging.info(f"[Session {session_id}] Line {i+1}: {line}")
                         return True
                     else:
                         logging.warning(f"[Session {session_id}] Failed with status {response.status}")
@@ -154,8 +148,10 @@ async def test_multiple_accesses(m3u8_url, num_sessions=10):
     logging.info(f"Total successful accesses: {successful_accesses}/{num_sessions}")
     return successful_accesses
 
+
 if __name__ == "__main__":
     asyncio.run(main())
-    
-    test_url = "http://rso.uspeh.sbs/va2VuPVtzdGJfdG9rZW5dIiwidWZ0IjoiMiIsInVmcCI6IjgzNzQiLCJzdHAiOiIxIiwiYWRsIjoiMTQiLCJsIjoiMDc3NjA4NjQiLCJwIjoiMDc3NjA4NjQ4NGVlNDg2NSIsImMiOiIxODIiLCJ0IjoiMmE4MjhlYjJkNmZmOTUyZDg2OTU3OTQ4OTA5ZDUzNmEiLCJkIjoiMTYzMDg0IiwiciI6IjE2NjM1NiIsIm0iOiJ0diIsImR0IjoiMCJ9eyJ1IjoiaHR0cDovLzE5NS4yMTEuMjcuMTQ5Ojg4NjgvODM3NC9pbmRleC5tM3U4P3R/index.m3u8"  # Replace with the actual URL
-        asyncio.run(test_multiple_accesses(test_url, num_sessions=10))
+
+    # Test multiple accesses to an m3u8 link
+    test_url = "http://rso.uspeh.sbs/your_m3u8_url_here.m3u8"  # Replace with the actual URL
+    asyncio.run(test_multiple_accesses(test_url, num_sessions=10))
