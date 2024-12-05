@@ -4,10 +4,6 @@ import logging
 import os
 import requests
 import urllib3
-import aiohttp
-import re
-import nordvpn
-print(nordvpn.__version__)
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 logging.basicConfig(level=logging.INFO)
@@ -127,73 +123,5 @@ async def main():
     await update_m3u_file(m3u_path, channel_updates)
 
 
-# Function to test multiple accesses
-async def test_multiple_accesses(m3u8_url, num_sessions=10):
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36"
-    }
-
-    nordvpn = nordvpn_api.NordVPN(username='tmzone@gmail.com', password='V34pN$h#Sx')
-    await nordvpn.connect(country='United Kingdom')
-
-    async def access_m3u8(session, url, session_id):
-        try:
-            async with session.get(url, timeout=10) as response:
-                if response.status == 200:
-                    m3u8_contents = await response.text()
-                    stream_details = parse_m3u8(m3u8_contents)
-                    logging.info(f"[Session {session_id}] Successfully accessed {url}")
-                    return stream_details
-                else:
-                    logging.warning(f"[Session {session_id}] Failed with status {response.status}")
-                    return None
-        except Exception as e:
-            logging.error(f"[Session {session_id}] Error accessing {url}: {e}")
-            return None
-
-    def parse_m3u8(m3u8_contents):
-        stream_details = []
-        lines = m3u8_contents.splitlines()
-        for line in lines:
-            if line.startswith("#EXT-X-STREAM-INF"):
-                match = re.search(r"BANDWIDTH=(\d+),RESOLUTION=(\d+x\d+)", line)
-                if match:
-                    bitrate = int(match.group(1)) // 1000  # Convert to kbps
-                    resolution = match.group(2)
-                    stream_details.append({"bitrate": bitrate, "resolution": resolution})
-        return stream_details
-
-    connector = aiohttp.TCPConnector(ssl=False)
-    async with aiohttp.ClientSession(connector=connector, headers=headers) as session:
-        tasks = [access_m3u8(session, m3u8_url, i + 1) for i in range(num_sessions)]
-        results = await asyncio.gather(*tasks)
-
-    successful_accesses = sum(1 for result in results if result)
-    logging.info(f"Total successful accesses: {successful_accesses}/{num_sessions}")
-
-    # Print stream details
-    for i, result in enumerate(results):
-        if result:
-            logging.info(f"[Session {i+1}] Stream details:")
-            for stream in result:
-                logging.info(f"  Bitrate: {stream['bitrate']} kbps, Resolution: {stream['resolution']}")
-
-    try:
-        await nordvpn.disconnect()
-    except Exception as e:
-        logging.error(f"Error disconnecting NordVPN: {e}")
-
-    return successful_accesses
-
-
 if __name__ == "__main__":
-    try:
-        asyncio.run(main())
-    except Exception as e:
-        logging.error(f"Error running main: {e}")
-
-    try:
-        test_url = "http://rso.uspeh.sbs/va2VuPVtzdGJfdG9rZW5dIiwidWZ0IjoiMiIsInVmcCI6IjgwMzAiLCJzdHAiOiIxIiwiYWRsIjoiMTQiLCJsIjoiMDc3NjA4NjQiLCJwIjoiMDc3NjA4NjQ4NGVlNDg2NSIsImMiOiI0MjAiLCJ0IjoiMmE4MjhlYjJkNmZmOTUyZDg2OTU3OTQ4OTA5ZDUzNmEiLCJkIjoiMTYzMDg0IiwiciI6IjE2NjM1NiIsIm0iOiJ0diIsImR0IjoiMCJ9eyJ1IjoiaHR0cDovLzE5NS4yMTEuMjcuMTQ5Ojg4NjgvODAzMC9pbmRleC5tM3U4P3R/index.m3u8"
-        asyncio.run(test_multiple_accesses(test_url, num_sessions=10))
-    except Exception as e:
-        logging.error(f"Error running test_multiple_accesses: {e}")
+    asyncio.run(main())
