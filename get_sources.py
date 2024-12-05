@@ -127,9 +127,14 @@ async def main():
 async def test_multiple_accesses(m3u8_url, num_sessions=10):
     import aiohttp
 
+    # Define headers
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"
+    }
+
     async def access_m3u8(url, session_id):
         try:
-            async with aiohttp.ClientSession() as session:
+            async with aiohttp.ClientSession(headers=headers) as session:  # Add headers to session
                 async with session.get(url, timeout=10) as response:
                     if response.status == 200:
                         logging.info(f"[Session {session_id}] Successfully accessed {url}")
