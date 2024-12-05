@@ -34,6 +34,7 @@ jobs:
           pip install -U playwright
           playwright install
           pip install requests
+          pip install requests aiohttp
 
       - name: Run update script
         run: |
