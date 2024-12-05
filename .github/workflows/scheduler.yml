@@ -35,7 +35,6 @@ jobs:
           playwright install
           pip install requests
           pip install aiohttp
-          pip install nordvpn
 
       - name: Run update script
         run: |
