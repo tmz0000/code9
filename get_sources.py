@@ -158,7 +158,7 @@ async def test_multiple_accesses(m3u8_url, num_sessions=10):
                     stream_details.append({"bitrate": bitrate, "resolution": resolution})
         return stream_details
 
-    connector = aiohttp.TCPConnector(verify_ssl=False)
+    connector = aiohttp.TCPConnector(ssl=False)
     async with aiohttp.ClientSession(connector=connector, headers=headers) as session:
         tasks = [access_m3u8(session, m3u8_url, i + 1) for i in range(num_sessions)]
         results = await asyncio.gather(*tasks)
