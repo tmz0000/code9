@@ -127,8 +127,15 @@ async def main():
 
 # Function to test multiple accesses
 async def test_multiple_accesses(m3u8_url, num_sessions=10):
+    async def test_multiple_accesses(m3u8_url, num_sessions=10):
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36",
+        "X-Forwarded-For": "212.111.43.218",  # UK IP address
+        "X-GeoIP-Country-Code": "GB",  # UK country code
+        "X-GeoIP-Region": "London",    # UK region
+        "X-GeoIP-City": "London",      # UK city
+        "X-GeoIP-Postal-Code": "EC1A", # UK postal code
+        "X-GeoIP-Time-Zone": "Europe/London"  # UK timezone
     }
 
     async def access_m3u8(session, url, session_id):
