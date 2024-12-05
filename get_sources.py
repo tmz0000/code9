@@ -5,6 +5,7 @@ import os
 import requests
 import urllib3
 import aiohttp
+import re
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 logging.basicConfig(level=logging.INFO)
@@ -134,22 +135,44 @@ async def test_multiple_accesses(m3u8_url, num_sessions=10):
         try:
             async with session.get(url, timeout=10) as response:
                 if response.status == 200:
+                    m3u8_contents = await response.text()
+                    stream_details = parse_m3u8(m3u8_contents)
                     logging.info(f"[Session {session_id}] Successfully accessed {url}")
-                    return True
+                    return stream_details
                 else:
                     logging.warning(f"[Session {session_id}] Failed with status {response.status}")
-                    return False
+                    return None
         except Exception as e:
             logging.error(f"[Session {session_id}] Error accessing {url}: {e}")
-            return False
+            return None
+
+    def parse_m3u8(m3u8_contents):
+        stream_details = []
+        lines = m3u8_contents.splitlines()
+        for line in lines:
+            if line.startswith("#EXT-X-STREAM-INF"):
+                match = re.search(r"BANDWIDTH=(\d+),RESOLUTION=(\d+x\d+)", line)
+                if match:
+                    bitrate = int(match.group(1)) // 1000  # Convert to kbps
+                    resolution = match.group(2)
+                    stream_details.append({"bitrate": bitrate, "resolution": resolution})
+        return stream_details
 
     connector = aiohttp.TCPConnector(verify_ssl=False)
     async with aiohttp.ClientSession(connector=connector, headers=headers) as session:
         tasks = [access_m3u8(session, m3u8_url, i + 1) for i in range(num_sessions)]
         results = await asyncio.gather(*tasks)
 
-    successful_accesses = sum(results)
+    successful_accesses = sum(1 for result in results if result)
     logging.info(f"Total successful accesses: {successful_accesses}/{num_sessions}")
+
+    # Print stream details
+    for i, result in enumerate(results):
+        if result:
+            logging.info(f"[Session {i+1}] Stream details:")
+            for stream in result:
+                logging.info(f"  Bitrate: {stream['bitrate']} kbps, Resolution: {stream['resolution']}")
+
     return successful_accesses
 
 
