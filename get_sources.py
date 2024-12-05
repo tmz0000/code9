@@ -125,29 +125,26 @@ async def main():
 
 # Function to test multiple accesses
 async def test_multiple_accesses(m3u8_url, num_sessions=10):
-    import aiohttp
-
-    # Define headers
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"
     }
 
-    async def access_m3u8(url, session_id):
+    async def access_m3u8(session, url, session_id):
         try:
-            async with aiohttp.ClientSession(headers=headers) as session:  # Add headers to session
-                async with session.get(url, timeout=10) as response:
-                    if response.status == 200:
-                        logging.info(f"[Session {session_id}] Successfully accessed {url}")
-                        return True
-                    else:
-                        logging.warning(f"[Session {session_id}] Failed with status {response.status}")
-                        return False
+            async with session.get(url, timeout=10) as response:
+                if response.status == 200:
+                    logging.info(f"[Session {session_id}] Successfully accessed {url}")
+                    return True
+                else:
+                    logging.warning(f"[Session {session_id}] Failed with status {response.status}")
+                    return False
         except Exception as e:
             logging.error(f"[Session {session_id}] Error accessing {url}: {e}")
             return False
 
-    tasks = [access_m3u8(m3u8_url, i + 1) for i in range(num_sessions)]
-    results = await asyncio.gather(*tasks)
+    async with aiohttp.ClientSession(headers=headers) as session:
+        tasks = [access_m3u8(session, m3u8_url, i + 1) for i in range(num_sessions)]
+        results = await asyncio.gather(*tasks)
 
     successful_accesses = sum(results)
     logging.info(f"Total successful accesses: {successful_accesses}/{num_sessions}")
