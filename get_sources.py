@@ -6,7 +6,8 @@ import requests
 import urllib3
 import aiohttp
 import re
-import nordvpn_api
+import nordvpn
+print(nordvpn.__version__)
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 logging.basicConfig(level=logging.INFO)
