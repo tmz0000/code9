@@ -1,5 +1,5 @@
 #EXTM3U
-#EXTINF:-1 tvg-id="" tvg-name="" tvg-logo="https://i.ibb.co/HpSLSsG/Plboy.png" group-title="XXX",Playboy HD
+#EXTINF:-1 tvg-id="12" group-title="NEW-XXX" tvg-name="" tvg-logo="https://i.ibb.co/HpSLSsG/Plboy.png" group-title="XXX",Playboy HD
 http://190.11.225.124:5000/live/playboy_hd/playlist.m3u8
 #EXTINF:-1 tvg-id="" tvg-name="" tvg-logo="http://stb.uspeh.sbs/images/logo_chanel/PENTHOUSE1GOLD18PLUS200.png" group-title="XXX",Penthouse Gold HD
 http://rso.uspeh.sbs/va2VuPVtzdGJfdG9rZW5dIiwidWZ0IjoiMiIsInVmcCI6IjgzNDIiLCJzdHAiOiIxIiwiYWRsIjoiMTQiLCJsIjoiMDc3NjA4NjQiLCJwIjoiMDc3NjA4NjQ4NGVlNDg2NSIsImMiOiIyNzAiLCJ0IjoiMmE4MjhlYjJkNmZmOTUyZDg2OTU3OTQ4OTA5ZDUzNmEiLCJkIjoiMTYzMDg0IiwiciI6IjE2NjM1NiIsIm0iOiJ0diIsImR0IjoiMCJ9eyJ1IjoiaHR0cDovLzE5NS4yMTEuMjcuMTQ5Ojg4NjgvODM0Mi9pbmRleC5tM3U4P3R/index.m3u8
@@ -41,7 +41,3 @@ https://ortepe.xyz:23653/tv/private/playlist.m3u8?wmsAuthSign=c2VydmVyX3RpbWU9NS
 https://ortepe.xyz:23653/tv/oxax/playlist.m3u8?wmsAuthSign=c2VydmVyX3RpbWU9NS8yMy8yMDI1IDY6NTc6NDIgQU0maGFzaF92YWx1ZT02MnZuTDh4U3phR3B6bEhOdDRsd3d3PT0mdmFsaWRtaW51dGVzPTYw
 #EXTINF:-1 tvg-id="11" group-title="NEW-XXX",Evil Angel HD 720p
 https://ortepe.xyz:23653/tv/evilangel/playlist.m3u8?wmsAuthSign=c2VydmVyX3RpbWU9NS8yMy8yMDI1IDY6NTc6NDIgQU0maGFzaF92YWx1ZT02MnZuTDh4U3phR3B6bEhOdDRsd3d3PT0mdmFsaWRtaW51dGVzPTYw
-#EXTINF:-1 tvg-id="12" group-title="XXX",New Video
-https://s70.bigcdn.cc/pubs/675ad272b38b99.80734899/1080.mp4
-#EXTINF:-1 tvg-id="13" group-title="XXX",4k video
-https://s40.bigcdn.cc/pubs/675ad36d6f8705.61894464/2160.mp4
