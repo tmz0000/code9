@@ -118,7 +118,9 @@ async def main():
         "08": "https://adult-tv-channels.com/pink-erotic-tv-online/",
         "09": "https://adult-tv-channels.com/private-tv-online/",
         "10": "https://adult-tv-channels.com/ox-ax-tv-online/",
-        "11": "https://adult-tv-channels.com/evil-angel-tv-online/"
+        "11": "https://adult-tv-channels.com/evil-angel-tv-online/",
+        "12": "https://www.pirilampo.tv/live-tv/nuart-tv.html/",
+        "13": "https://www.pirilampo.tv/live-tv/vivid-red-hd.html/"
     }
     await update_m3u_file(m3u_path, channel_updates)
 
