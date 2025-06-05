@@ -76,26 +76,48 @@ async def fetch_new_stream_url(channel_page_url, retries=3):
                 playlist_urls = []
                 all_network_requests = []
 
-                # Capture ALL network requests, not just m3u8 routes
+                # Focus on XHR requests and m3u8 URLs specifically
                 async def handle_request(request):
                     url = request.url
                     all_network_requests.append(url)
                     
-                    # More comprehensive m3u8 detection
-                    if any(pattern in url.lower() for pattern in ['.m3u8', 'playlist', 'manifest', 'stream']):
-                        if '.m3u8' in url.lower() or 'playlist' in url.lower():
+                    # Only capture m3u8 URLs, ignore ads and other content
+                    if '.m3u8' in url.lower():
+                        # Additional filtering to avoid ad networks
+                        if not any(ad_domain in url.lower() for ad_domain in [
+                            'afcdn.net', 'adsystem', 'googlesyndication', 'doubleclick',
+                            'ads.', 'ad.', 'analytics', 'google-analytics', 'facebook.com'
+                        ]):
                             playlist_urls.append(url)
                             logging.info(f"Found potential playlist URL: {url}")
 
                 async def handle_response(response):
                     url = response.url
-                    # Check response content type for streaming content
-                    try:
-                        content_type = response.headers.get('content-type', '').lower()
-                        if any(ct in content_type for ct in ['application/vnd.apple.mpegurl', 'video/', 'application/x-mpegurl']):
+                    request_type = response.request.resource_type
+                    
+                    # Focus on XHR requests that contain m3u8
+                    if request_type == 'xhr' and '.m3u8' in url.lower():
+                        # Double-check it's not an ad
+                        if not any(ad_domain in url.lower() for ad_domain in [
+                            'afcdn.net', 'adsystem', 'googlesyndication', 'doubleclick',
+                            'ads.', 'ad.', 'analytics', 'google-analytics', 'facebook.com'
+                        ]):
                             if url not in playlist_urls:
                                 playlist_urls.append(url)
-                                logging.info(f"Found playlist URL via content-type: {url}")
+                                logging.info(f"Found XHR playlist URL: {url}")
+                    
+                    # Also check for proper m3u8 content-type but be more specific
+                    try:
+                        content_type = response.headers.get('content-type', '').lower()
+                        if 'application/vnd.apple.mpegurl' in content_type or 'application/x-mpegurl' in content_type:
+                            if url not in playlist_urls and '.m3u8' in url.lower():
+                                # Make sure it's not an ad
+                                if not any(ad_domain in url.lower() for ad_domain in [
+                                    'afcdn.net', 'adsystem', 'googlesyndication', 'doubleclick',
+                                    'ads.', 'ad.', 'analytics', 'google-analytics'
+                                ]):
+                                    playlist_urls.append(url)
+                                    logging.info(f"Found playlist URL via proper content-type: {url}")
                     except:
                         pass
 
@@ -103,13 +125,22 @@ async def fetch_new_stream_url(channel_page_url, retries=3):
                 page.on("request", handle_request)
                 page.on("response", handle_response)
 
-                # Also use route interception as backup
+                # Also use route interception but be more selective
                 async def handle_route(route, request):
                     request_url = request.url
-                    if ".m3u8" in request_url.lower() or "playlist" in request_url.lower():
-                        if request_url not in playlist_urls:
-                            playlist_urls.append(request_url)
-                            logging.info(f"Found potential playlist URL via route: {request_url}")
+                    request_type = request.resource_type
+                    
+                    # Only intercept XHR requests with m3u8 or actual m3u8 file requests
+                    if (request_type == 'xhr' and '.m3u8' in request_url.lower()) or request_url.lower().endswith('.m3u8'):
+                        # Filter out ad networks
+                        if not any(ad_domain in request_url.lower() for ad_domain in [
+                            'afcdn.net', 'adsystem', 'googlesyndication', 'doubleclick',
+                            'ads.', 'ad.', 'analytics', 'google-analytics', 'facebook.com'
+                        ]):
+                            if request_url not in playlist_urls:
+                                playlist_urls.append(request_url)
+                                logging.info(f"Found potential playlist URL via route ({request_type}): {request_url}")
+                    
                     await route.continue_()
 
                 await page.route("**/*", handle_route)
@@ -183,22 +214,33 @@ async def fetch_new_stream_url(channel_page_url, retries=3):
                         except Exception as e:
                             logging.debug(f"Interaction failed: {e}")
                     
-                    # Check for m3u8 URLs in page source as last resort
+                    # Check for m3u8 URLs in page source but filter out ads
                     try:
                         page_content = await page.content()
                         m3u8_matches = re.findall(r'https?://[^\s<>"\']+\.m3u8[^\s<>"\']*', page_content, re.IGNORECASE)
                         for match in m3u8_matches:
-                            if match not in playlist_urls:
-                                playlist_urls.append(match)
-                                logging.info(f"Found m3u8 URL in page source: {match}")
+                            # Filter out ad domains
+                            if not any(ad_domain in match.lower() for ad_domain in [
+                                'afcdn.net', 'adsystem', 'googlesyndication', 'doubleclick',
+                                'ads.', 'ad.', 'analytics', 'google-analytics', 'facebook.com'
+                            ]):
+                                if match not in playlist_urls:
+                                    playlist_urls.append(match)
+                                    logging.info(f"Found m3u8 URL in page source: {match}")
                     except Exception as e:
                         logging.debug(f"Failed to search page source: {e}")
                     
                     # Also check all collected network requests for any missed m3u8 URLs
                     for req_url in all_network_requests:
-                        if '.m3u8' in req_url.lower() and req_url not in playlist_urls:
-                            playlist_urls.append(req_url)
-                            logging.info(f"Found m3u8 URL from network logs: {req_url}")
+                        if '.m3u8' in req_url.lower():
+                            # Filter out ad domains
+                            if not any(ad_domain in req_url.lower() for ad_domain in [
+                                'afcdn.net', 'adsystem', 'googlesyndication', 'doubleclick',
+                                'ads.', 'ad.', 'analytics', 'google-analytics', 'facebook.com'
+                            ]):
+                                if req_url not in playlist_urls:
+                                    playlist_urls.append(req_url)
+                                    logging.info(f"Found m3u8 URL from network logs: {req_url}")
                     
                     # If still no URLs found, try refreshing once more
                     if not playlist_urls and attempt == 0:
@@ -251,6 +293,19 @@ async def click_elements(page, selectors):
 async def validate_m3u8_url(url):
     """Validate m3u8 URL with comprehensive checking"""
     try:
+        # Skip validation for obvious ad URLs
+        if any(ad_domain in url.lower() for ad_domain in [
+            'afcdn.net', 'adsystem', 'googlesyndication', 'doubleclick',
+            'ads.', 'ad.', 'analytics', 'google-analytics', 'facebook.com'
+        ]):
+            logging.warning(f"Skipping ad URL: {url}")
+            return False
+            
+        # Only validate URLs that actually end with .m3u8 or contain m3u8 in the path
+        if not ('.m3u8' in url.lower() and ('playlist' in url.lower() or url.lower().endswith('.m3u8'))):
+            logging.warning(f"URL doesn't look like a valid m3u8 playlist: {url}")
+            return False
+        
         # First try HEAD request
         response = requests.head(url, timeout=20, verify=False, allow_redirects=True, 
                                headers={'User-Agent': random.choice(USER_AGENTS)})
@@ -269,6 +324,9 @@ async def validate_m3u8_url(url):
                 # Check if it looks like an m3u8 playlist
                 if b'#EXTM3U' in chunk or b'#EXT-X-' in chunk or b'.ts' in chunk:
                     return True
+                # If it's not a valid m3u8 file, reject it
+                logging.warning(f"URL returned content but not valid m3u8: {url}")
+                return False
             except:
                 pass
             return True
