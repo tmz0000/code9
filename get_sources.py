@@ -249,46 +249,34 @@ async def interact_with_page(page):
             logging.debug(f"Interaction failed: {e}")
 
 async def handle_iframes(page, playlist_urls):
-    """Handle iframe content"""
-    try:
-        iframes = await page.query_selector_all('iframe')
-        logging.info(f"🖼️ Found {len(iframes)} iframes")
-        
-        for i, iframe in enumerate(iframes):
-            try:
-                # Get iframe src
-                src = await iframe.get_attribute('src')
-                if src:
-                    logging.info(f"  Iframe {i+1}: {src}")
-                    
-                    # Try to access iframe content
-                    frame = await iframe.content_frame()
-                    if frame:
-                        # Wait for frame to load
-                        await asyncio.sleep(3)
-                        
-                        # Listen for network requests in iframe
-                        async def iframe_request_handler(request):
-                            url = request.url
-                            if '.m3u8' in url.lower() and url not in playlist_urls:
-                                playlist_urls.append(url)
-                                logging.info(f"🎯 IFRAME M3U8: {url}")
-                        
-                        frame.on("request", iframe_request_handler)
-                        
-                        # Try interacting with iframe content
-                        try:
-                            await frame.click('video', timeout=3000)
-                        except:
-                            pass
-                        
-                        await asyncio.sleep(3)
-                        
-            except Exception as e:
-                logging.debug(f"Iframe {i+1} error: {e}")
-                
-    except Exception as e:
-        logging.error(f"Error handling iframes: {e}")
+    frames = page.frames
+    logging.info(f"🔍 Total iframes found: {len(frames)}")
+
+    for idx, frame in enumerate(frames):
+        try:
+            frame_url = frame.url
+            logging.info(f"🖼️ Scanning iframe {idx + 1}: {frame_url}")
+            
+            # Try to click play buttons or video areas in iframe
+            await click_elements(frame, [
+                'button[class*="play"]', '.play-button', '[aria-label*="play" i]',
+                'video', '[id*="player"]', '[class*="player"]', '.live', '.stream'
+            ])
+
+            # Also monitor CDP events inside the iframe context
+            client = await frame.context.new_cdp_session(frame.page)
+            await client.send('Network.enable')
+
+            async def handle_cdp_request(params):
+                url = params.get('request', {}).get('url', '')
+                if '.m3u8' in url.lower() and url not in playlist_urls:
+                    playlist_urls.append(url)
+                    logging.info(f"🎯 CDP (iframe) FOUND M3U8: {url}")
+
+            client.on('Network.requestWillBeSent', handle_cdp_request)
+
+        except Exception as e:
+            logging.warning(f"⚠️ Failed to process iframe {idx + 1}: {e}")
 
 async def search_page_source(page, playlist_urls):
     """Search page source for m3u8 URLs"""
