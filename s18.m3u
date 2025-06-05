@@ -41,7 +41,7 @@ https://ortepe.xyz:31228/tv/private/playlist.m3u8?wmsAuthSign=c2VydmVyX3RpbWU9Ni
 https://ortepe.xyz:31228/tv/oxax/playlist.m3u8?wmsAuthSign=c2VydmVyX3RpbWU9Ni81LzIwMjUgNDo0Nzo1NCBQTSZoYXNoX3ZhbHVlPW9jU2xpNzArTDJMbUM3SU5vTmxrTEE9PSZ2YWxpZG1pbnV0ZXM9NjA=
 #EXTINF:-1 tvg-id="11" group-title="NEW-XXX",Evil Angel HD 720p
 https://ortepe.xyz:31228/tv/evilangel/playlist.m3u8?wmsAuthSign=c2VydmVyX3RpbWU9Ni81LzIwMjUgNDo0Nzo1NCBQTSZoYXNoX3ZhbHVlPW9jU2xpNzArTDJMbUM3SU5vTmxrTEE9PSZ2YWxpZG1pbnV0ZXM9NjA=
-#EXTINF:-1 tvg-id="12" group-title="NEW-XXX",test01
+#EXTINF:-1 tvg-id="12" group-title="NEW-XXX",test001
 https://moonlight.wideiptv.top/NuartTV/tracks-a1/index.fmp4.m3u8?token=6e6a540289ae8bc7af05209aa5f335c7fd581859-1a5b5db34fe3e7b317ff6c5138c01c82-1749152607-1749141807
-#EXTINF:-1 tvg-id="13" group-title="NEW-XXX",test02
+#EXTINF:-1 tvg-id="13" group-title="NEW-XXX",test002
 https://moonlight.wideiptv.top/VividHD/tracks-a1/index.fmp4.m3u8?token=59d41a75c0b47ac2dc4988e59fce325dfe0fe55f-75e8f2279c04fb8845d8d3c68e21ca84-1749152607-1749141807
