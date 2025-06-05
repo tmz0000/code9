@@ -24,7 +24,7 @@ async def fetch_new_stream_url(channel_page_url, retries=3):
             async with async_playwright() as p:
                 # Launch browser with stealth settings
                 browser = await p.chromium.launch(
-                    headless=True,
+                    headless=False,  # Changed to visible for debugging
                     args=[
                         '--no-sandbox',
                         '--disable-setuid-sandbox',
@@ -64,60 +64,43 @@ async def fetch_new_stream_url(channel_page_url, retries=3):
                 
                 page = await context.new_page()
                 
-                # More selective resource blocking - allow important resources
-                await page.route("**/*", lambda route, request: (
-                    route.abort() if request.resource_type in ["image", "font"] 
-                    and ".m3u8" not in request.url.lower()
-                    and ".mp4" not in request.url.lower()
-                    and ".ts" not in request.url.lower()
-                    else route.continue_()
-                ))
-
+                # REMOVED resource blocking - this was likely preventing m3u8 detection
+                # The original script blocked too many resources
+                
                 playlist_urls = []
                 all_network_requests = []
 
-                # Focus on XHR requests and m3u8 URLs specifically
+                # Enhanced request monitoring
                 async def handle_request(request):
                     url = request.url
                     all_network_requests.append(url)
                     
-                    # Only capture m3u8 URLs, ignore ads and other content
+                    # Log ALL requests for debugging
+                    logging.debug(f"REQUEST: {request.resource_type} - {url}")
+                    
+                    # Capture ANY URL containing m3u8
                     if '.m3u8' in url.lower():
-                        # Additional filtering to avoid ad networks
-                        if not any(ad_domain in url.lower() for ad_domain in [
-                            'afcdn.net', 'adsystem', 'googlesyndication', 'doubleclick',
-                            'ads.', 'ad.', 'analytics', 'google-analytics', 'facebook.com'
-                        ]):
-                            playlist_urls.append(url)
-                            logging.info(f"Found potential playlist URL: {url}")
+                        playlist_urls.append(url)
+                        logging.info(f"🎯 FOUND M3U8 REQUEST: {url}")
 
                 async def handle_response(response):
                     url = response.url
-                    request_type = response.request.resource_type
                     
-                    # Focus on XHR requests that contain m3u8
-                    if request_type == 'xhr' and '.m3u8' in url.lower():
-                        # Double-check it's not an ad
-                        if not any(ad_domain in url.lower() for ad_domain in [
-                            'afcdn.net', 'adsystem', 'googlesyndication', 'doubleclick',
-                            'ads.', 'ad.', 'analytics', 'google-analytics', 'facebook.com'
-                        ]):
-                            if url not in playlist_urls:
-                                playlist_urls.append(url)
-                                logging.info(f"Found XHR playlist URL: {url}")
+                    # Log response details
+                    logging.debug(f"RESPONSE: {response.status} - {response.request.resource_type} - {url}")
                     
-                    # Also check for proper m3u8 content-type but be more specific
+                    # Check for m3u8 in URL
+                    if '.m3u8' in url.lower() and url not in playlist_urls:
+                        playlist_urls.append(url)
+                        logging.info(f"🎯 FOUND M3U8 RESPONSE: {url}")
+                    
+                    # Check content-type headers
                     try:
                         content_type = response.headers.get('content-type', '').lower()
-                        if 'application/vnd.apple.mpegurl' in content_type or 'application/x-mpegurl' in content_type:
-                            if url not in playlist_urls and '.m3u8' in url.lower():
-                                # Make sure it's not an ad
-                                if not any(ad_domain in url.lower() for ad_domain in [
-                                    'afcdn.net', 'adsystem', 'googlesyndication', 'doubleclick',
-                                    'ads.', 'ad.', 'analytics', 'google-analytics'
-                                ]):
-                                    playlist_urls.append(url)
-                                    logging.info(f"Found playlist URL via proper content-type: {url}")
+                        if any(ct in content_type for ct in ['mpegurl', 'x-mpegurl', 'vnd.apple.mpegurl']):
+                            if url not in playlist_urls:
+                                playlist_urls.append(url)
+                                logging.info(f"🎯 FOUND M3U8 BY CONTENT-TYPE: {url}")
                     except:
                         pass
 
@@ -125,152 +108,258 @@ async def fetch_new_stream_url(channel_page_url, retries=3):
                 page.on("request", handle_request)
                 page.on("response", handle_response)
 
-                # Also use route interception but be more selective
-                async def handle_route(route, request):
-                    request_url = request.url
-                    request_type = request.resource_type
-                    
-                    # Only intercept XHR requests with m3u8 or actual m3u8 file requests
-                    if (request_type == 'xhr' and '.m3u8' in request_url.lower()) or request_url.lower().endswith('.m3u8'):
-                        # Filter out ad networks
-                        if not any(ad_domain in request_url.lower() for ad_domain in [
-                            'afcdn.net', 'adsystem', 'googlesyndication', 'doubleclick',
-                            'ads.', 'ad.', 'analytics', 'google-analytics', 'facebook.com'
-                        ]):
-                            if request_url not in playlist_urls:
-                                playlist_urls.append(request_url)
-                                logging.info(f"Found potential playlist URL via route ({request_type}): {request_url}")
-                    
-                    await route.continue_()
-
-                await page.route("**/*", handle_route)
+                # Enhanced CDP session for lower-level network monitoring
+                client = await context.new_cdp_session(page)
+                await client.send('Network.enable')
+                
+                async def handle_cdp_request(params):
+                    url = params.get('request', {}).get('url', '')
+                    if '.m3u8' in url.lower() and url not in playlist_urls:
+                        playlist_urls.append(url)
+                        logging.info(f"🎯 CDP FOUND M3U8: {url}")
+                
+                client.on('Network.requestWillBeSent', handle_cdp_request)
 
                 try:
-                    # Navigate to page with longer timeout
+                    # Navigate to page with much longer timeout
+                    logging.info(f"🌐 Navigating to: {channel_page_url}")
                     await page.goto(
                         channel_page_url, 
-                        wait_until='networkidle',  # Wait for network activity to settle
-                        timeout=90000  # Increased timeout
+                        wait_until='domcontentloaded',  # Changed from networkidle
+                        timeout=120000  # 2 minutes
                     )
                     
-                    # Wait for initial page load
+                    # Wait for initial load
+                    await asyncio.sleep(3)
+                    
+                    # Handle popups and overlays
+                    await handle_popups(page)
+                    
+                    # Much more aggressive interaction strategy
+                    await interact_with_page(page)
+                    
+                    # Wait longer for lazy-loaded content
+                    logging.info("⏳ Waiting for streams to load...")
+                    await asyncio.sleep(15)  # Increased wait time
+                    
+                    # Try to find and interact with iframes
+                    await handle_iframes(page, playlist_urls)
+                    
+                    # Additional wait after iframe interactions
+                    await asyncio.sleep(10)
+                    
+                    # Search page source more thoroughly
+                    await search_page_source(page, playlist_urls)
+                    
+                    # Execute JavaScript to search for hidden m3u8 URLs
+                    await execute_js_search(page, playlist_urls)
+                    
+                    # Final wait for any delayed requests
                     await asyncio.sleep(5)
-                    
-                    # More aggressive popup handling
-                    popup_selectors = [
-                        '[class*="close"]', '[class*="dismiss"]', '[class*="modal-close"]',
-                        '[id*="close"]', '[aria-label="Close"]', '.popup-close',
-                        'button[title="Close"]', '[data-dismiss="modal"]',
-                        '.close', '#close', '.modal-close', '.overlay-close',
-                        '[onclick*="close"]', '[onclick*="hide"]'
-                    ]
-                    
-                    for selector in popup_selectors:
-                        try:
-                            elements = await page.query_selector_all(selector)
-                            for element in elements:
-                                try:
-                                    if await element.is_visible():
-                                        await element.click(timeout=2000)
-                                        await asyncio.sleep(1)
-                                        logging.info(f"Closed popup with selector: {selector}")
-                                except:
-                                    continue
-                        except:
-                            continue
-                    
-                    # Multiple interaction attempts
-                    interaction_attempts = [
-                        # Scroll to trigger lazy loading
-                        lambda: page.evaluate("window.scrollTo(0, document.body.scrollHeight)"),
-                        lambda: asyncio.sleep(3),
-                        
-                        # Try clicking various play elements
-                        lambda: click_elements(page, [
-                            'button[class*="play"]', '.play-button', '[aria-label*="play" i]',
-                            'video', '.video-player', '[class*="player"]', '.player',
-                            '[id*="play"]', '.play', '#play', 'button[title*="play" i]',
-                            '.video-js', '.vjs-big-play-button'
-                        ]),
-                        
-                        # Wait and scroll again
-                        lambda: asyncio.sleep(3),
-                        lambda: page.evaluate("window.scrollTo(0, 0)"),
-                        lambda: asyncio.sleep(2),
-                        
-                        # Try clicking anywhere that might trigger video loading
-                        lambda: click_elements(page, [
-                            'iframe', '.embed', '[class*="embed"]', '[class*="video"]',
-                            '.stream', '[class*="stream"]', '.live', '[class*="live"]'
-                        ]),
-                        
-                        # Final wait for any delayed requests
-                        lambda: asyncio.sleep(8)
-                    ]
-                    
-                    for action in interaction_attempts:
-                        try:
-                            await action()
-                        except Exception as e:
-                            logging.debug(f"Interaction failed: {e}")
-                    
-                    # Check for m3u8 URLs in page source but filter out ads
-                    try:
-                        page_content = await page.content()
-                        m3u8_matches = re.findall(r'https?://[^\s<>"\']+\.m3u8[^\s<>"\']*', page_content, re.IGNORECASE)
-                        for match in m3u8_matches:
-                            # Filter out ad domains
-                            if not any(ad_domain in match.lower() for ad_domain in [
-                                'afcdn.net', 'adsystem', 'googlesyndication', 'doubleclick',
-                                'ads.', 'ad.', 'analytics', 'google-analytics', 'facebook.com'
-                            ]):
-                                if match not in playlist_urls:
-                                    playlist_urls.append(match)
-                                    logging.info(f"Found m3u8 URL in page source: {match}")
-                    except Exception as e:
-                        logging.debug(f"Failed to search page source: {e}")
-                    
-                    # Also check all collected network requests for any missed m3u8 URLs
-                    for req_url in all_network_requests:
-                        if '.m3u8' in req_url.lower():
-                            # Filter out ad domains
-                            if not any(ad_domain in req_url.lower() for ad_domain in [
-                                'afcdn.net', 'adsystem', 'googlesyndication', 'doubleclick',
-                                'ads.', 'ad.', 'analytics', 'google-analytics', 'facebook.com'
-                            ]):
-                                if req_url not in playlist_urls:
-                                    playlist_urls.append(req_url)
-                                    logging.info(f"Found m3u8 URL from network logs: {req_url}")
-                    
-                    # If still no URLs found, try refreshing once more
-                    if not playlist_urls and attempt == 0:
-                        logging.info("No m3u8 URLs found, trying page refresh...")
-                        await page.reload(wait_until='networkidle', timeout=90000)
-                        await asyncio.sleep(8)
 
                 except Exception as e:
-                    logging.error(f"Error loading page {channel_page_url} on attempt {attempt + 1}: {e}")
+                    logging.error(f"❌ Error loading page {channel_page_url} on attempt {attempt + 1}: {e}")
                     await browser.close()
                     continue
 
+                await client.detach()
                 await browser.close()
 
-                # Validate m3u8 URLs with more comprehensive checking
+                # Remove duplicates and log findings
+                playlist_urls = list(dict.fromkeys(playlist_urls))  # Remove duplicates while preserving order
+                
+                logging.info(f"📊 Total unique m3u8 URLs found: {len(playlist_urls)}")
+                for i, url in enumerate(playlist_urls, 1):
+                    logging.info(f"  {i}. {url}")
+
+                # Validate m3u8 URLs
                 for url in playlist_urls:
                     if await validate_m3u8_url(url):
-                        logging.info(f"Valid playlist URL: {url}")
+                        logging.info(f"✅ Valid playlist URL: {url}")
                         return url
 
         except Exception as e:
-            logging.error(f"Attempt {attempt + 1} failed for {channel_page_url}: {e}")
+            logging.error(f"❌ Attempt {attempt + 1} failed for {channel_page_url}: {e}")
 
         if attempt < retries - 1:
-            wait_time = (attempt + 1) * 8  # Longer backoff
-            logging.warning(f"Retrying {channel_page_url} ({attempt + 1}/{retries}) after {wait_time}s...")
+            wait_time = (attempt + 1) * 10
+            logging.warning(f"🔄 Retrying {channel_page_url} ({attempt + 1}/{retries}) after {wait_time}s...")
             await asyncio.sleep(wait_time)
 
-    logging.error(f"Failed to fetch stream URL for {channel_page_url} after {retries} attempts")
+    logging.error(f"❌ Failed to fetch stream URL for {channel_page_url} after {retries} attempts")
     return None
+
+async def handle_popups(page):
+    """Enhanced popup handling"""
+    popup_selectors = [
+        '[class*="close"]', '[class*="dismiss"]', '[class*="modal-close"]',
+        '[id*="close"]', '[aria-label="Close"]', '.popup-close',
+        'button[title="Close"]', '[data-dismiss="modal"]',
+        '.close', '#close', '.modal-close', '.overlay-close',
+        '[onclick*="close"]', '[onclick*="hide"]', '.btn-close',
+        '[class*="overlay"]', '[class*="popup"]', '[class*="modal"]'
+    ]
+    
+    for selector in popup_selectors:
+        try:
+            elements = await page.query_selector_all(selector)
+            for element in elements:
+                try:
+                    if await element.is_visible():
+                        await element.click(timeout=2000)
+                        await asyncio.sleep(1)
+                        logging.info(f"🚫 Closed popup: {selector}")
+                except:
+                    continue
+        except:
+            continue
+
+async def interact_with_page(page):
+    """Enhanced page interaction"""
+    interactions = [
+        # Scroll to trigger lazy loading
+        lambda: page.evaluate("window.scrollTo(0, document.body.scrollHeight)"),
+        lambda: asyncio.sleep(2),
+        lambda: page.evaluate("window.scrollTo(0, 0)"),
+        lambda: asyncio.sleep(2),
+        
+        # Try clicking play buttons and video elements
+        lambda: click_elements(page, [
+            'button[class*="play"]', '.play-button', '[aria-label*="play" i]',
+            'video', '.video-player', '[class*="player"]', '.player',
+            '[id*="play"]', '.play', '#play', 'button[title*="play" i]',
+            '.video-js', '.vjs-big-play-button', '[class*="video"]',
+            '.stream', '[class*="stream"]', '.live', '[class*="live"]'
+        ]),
+        
+        # Hover over video areas
+        lambda: hover_elements(page, ['video', '.video-player', '[class*="player"]']),
+        
+        # Try pressing space and enter keys
+        lambda: page.keyboard.press('Space'),
+        lambda: asyncio.sleep(1),
+        lambda: page.keyboard.press('Enter'),
+        lambda: asyncio.sleep(2),
+    ]
+    
+    for action in interactions:
+        try:
+            await action()
+        except Exception as e:
+            logging.debug(f"Interaction failed: {e}")
+
+async def handle_iframes(page, playlist_urls):
+    """Handle iframe content"""
+    try:
+        iframes = await page.query_selector_all('iframe')
+        logging.info(f"🖼️ Found {len(iframes)} iframes")
+        
+        for i, iframe in enumerate(iframes):
+            try:
+                # Get iframe src
+                src = await iframe.get_attribute('src')
+                if src:
+                    logging.info(f"  Iframe {i+1}: {src}")
+                    
+                    # Try to access iframe content
+                    frame = await iframe.content_frame()
+                    if frame:
+                        # Wait for frame to load
+                        await asyncio.sleep(3)
+                        
+                        # Listen for network requests in iframe
+                        async def iframe_request_handler(request):
+                            url = request.url
+                            if '.m3u8' in url.lower() and url not in playlist_urls:
+                                playlist_urls.append(url)
+                                logging.info(f"🎯 IFRAME M3U8: {url}")
+                        
+                        frame.on("request", iframe_request_handler)
+                        
+                        # Try interacting with iframe content
+                        try:
+                            await frame.click('video', timeout=3000)
+                        except:
+                            pass
+                        
+                        await asyncio.sleep(3)
+                        
+            except Exception as e:
+                logging.debug(f"Iframe {i+1} error: {e}")
+                
+    except Exception as e:
+        logging.error(f"Error handling iframes: {e}")
+
+async def search_page_source(page, playlist_urls):
+    """Search page source for m3u8 URLs"""
+    try:
+        content = await page.content()
+        
+        # Multiple regex patterns for m3u8 URLs
+        patterns = [
+            r'https?://[^\s<>"\']+\.m3u8[^\s<>"\']*',
+            r'["\']([^"\']*\.m3u8[^"\']*)["\']',
+            r'url[:\s]*["\']?([^"\']*\.m3u8[^"\']*)["\']?',
+            r'src[:\s]*["\']?([^"\']*\.m3u8[^"\']*)["\']?'
+        ]
+        
+        for pattern in patterns:
+            matches = re.findall(pattern, content, re.IGNORECASE)
+            for match in matches:
+                url = match if match.startswith('http') else match
+                if url and url not in playlist_urls:
+                    playlist_urls.append(url)
+                    logging.info(f"🎯 PAGE SOURCE M3U8: {url}")
+                    
+    except Exception as e:
+        logging.error(f"Error searching page source: {e}")
+
+async def execute_js_search(page, playlist_urls):
+    """Execute JavaScript to search for m3u8 URLs"""
+    try:
+        js_code = """
+        () => {
+            const urls = [];
+            
+            // Search all script tags
+            document.querySelectorAll('script').forEach(script => {
+                const text = script.textContent || script.innerText || '';
+                const matches = text.match(/https?:\/\/[^\s<>"']+\.m3u8[^\s<>"']*/gi);
+                if (matches) {
+                    urls.push(...matches);
+                }
+            });
+            
+            // Search all elements with data attributes
+            document.querySelectorAll('[data-src], [data-url], [data-stream]').forEach(el => {
+                ['data-src', 'data-url', 'data-stream'].forEach(attr => {
+                    const val = el.getAttribute(attr);
+                    if (val && val.includes('.m3u8')) {
+                        urls.push(val);
+                    }
+                });
+            });
+            
+            // Search window object for common video player properties
+            const searchProps = ['videoUrl', 'streamUrl', 'playlistUrl', 'hlsUrl', 'source'];
+            searchProps.forEach(prop => {
+                if (window[prop] && typeof window[prop] === 'string' && window[prop].includes('.m3u8')) {
+                    urls.push(window[prop]);
+                }
+            });
+            
+            return [...new Set(urls)];
+        }
+        """
+        
+        js_urls = await page.evaluate(js_code)
+        for url in js_urls:
+            if url not in playlist_urls:
+                playlist_urls.append(url)
+                logging.info(f"🎯 JAVASCRIPT M3U8: {url}")
+                
+    except Exception as e:
+        logging.error(f"Error executing JavaScript search: {e}")
 
 async def click_elements(page, selectors):
     """Helper function to click elements with various selectors"""
@@ -281,8 +370,26 @@ async def click_elements(page, selectors):
                 try:
                     if await element.is_visible():
                         await element.click(timeout=3000)
-                        await asyncio.sleep(2)
-                        logging.info(f"Clicked element: {selector}")
+                        await asyncio.sleep(1)
+                        logging.info(f"🖱️ Clicked: {selector}")
+                        return True
+                except:
+                    continue
+        except:
+            continue
+    return False
+
+async def hover_elements(page, selectors):
+    """Helper function to hover over elements"""
+    for selector in selectors:
+        try:
+            elements = await page.query_selector_all(selector)
+            for element in elements:
+                try:
+                    if await element.is_visible():
+                        await element.hover(timeout=3000)
+                        await asyncio.sleep(1)
+                        logging.info(f"👆 Hovered: {selector}")
                         return True
                 except:
                     continue
@@ -293,52 +400,47 @@ async def click_elements(page, selectors):
 async def validate_m3u8_url(url):
     """Validate m3u8 URL with comprehensive checking"""
     try:
-        # Skip validation for obvious ad URLs
-        if any(ad_domain in url.lower() for ad_domain in [
-            'afcdn.net', 'adsystem', 'googlesyndication', 'doubleclick',
-            'ads.', 'ad.', 'analytics', 'google-analytics', 'facebook.com'
-        ]):
-            logging.warning(f"Skipping ad URL: {url}")
+        # Skip obvious non-playlist URLs
+        if any(skip in url.lower() for skip in ['ad', 'analytics', 'tracking']):
             return False
             
-        # Only validate URLs that actually end with .m3u8 or contain m3u8 in the path
-        if not ('.m3u8' in url.lower() and ('playlist' in url.lower() or url.lower().endswith('.m3u8'))):
-            logging.warning(f"URL doesn't look like a valid m3u8 playlist: {url}")
+        # Must contain m3u8
+        if '.m3u8' not in url.lower():
             return False
         
-        # First try HEAD request
-        response = requests.head(url, timeout=20, verify=False, allow_redirects=True, 
+        # Try HEAD request first
+        response = requests.head(url, timeout=15, verify=False, allow_redirects=True, 
                                headers={'User-Agent': random.choice(USER_AGENTS)})
         
         if response.status_code in [200, 302, 301]:
             return True
             
-        # If HEAD fails, try GET with limited content
-        response = requests.get(url, timeout=20, verify=False, stream=True,
+        # If HEAD fails, try GET
+        response = requests.get(url, timeout=15, verify=False, stream=True,
                               headers={'User-Agent': random.choice(USER_AGENTS)})
         
         if response.status_code in [200, 302, 301]:
-            # Try to read a small chunk to verify it's actually a playlist
+            # Verify it's actually a playlist
             try:
-                chunk = next(response.iter_content(chunk_size=2048), b'')
-                # Check if it looks like an m3u8 playlist
-                if b'#EXTM3U' in chunk or b'#EXT-X-' in chunk or b'.ts' in chunk:
+                chunk = next(response.iter_content(chunk_size=1024), b'')
+                if b'#EXTM3U' in chunk or b'#EXT-X-' in chunk:
                     return True
-                # If it's not a valid m3u8 file, reject it
-                logging.warning(f"URL returned content but not valid m3u8: {url}")
-                return False
+                    
+                # Sometimes m3u8 files don't start with standard headers
+                if b'.ts' in chunk or b'.m4s' in chunk:
+                    return True
+                    
             except:
                 pass
             return True
         
-        logging.warning(f"Invalid playlist URL (status {response.status_code}): {url}")
         return False
         
-    except requests.exceptions.RequestException as e:
-        logging.error(f"Error validating URL {url}: {e}")
+    except Exception as e:
+        logging.debug(f"Validation error for {url}: {e}")
         return False
 
-# Update M3U file (same as before but with improved logging)
+# Update M3U file (same as original but with better logging)
 async def update_m3u_file(m3u_path, channel_updates):
     if not os.path.exists(m3u_path):
         logging.error(f"File not found: {m3u_path}")
@@ -358,45 +460,44 @@ async def update_m3u_file(m3u_path, channel_updates):
                     try:
                         tvg_id = channel_info.split('tvg-id="')[1].split('"')[0]
                         if tvg_id in channel_updates:
-                            # Schedule fetching URL concurrently
                             tasks.append((i + 1, channel_info, channel_updates[tvg_id]))
                     except IndexError:
                         logging.warning(f"Could not extract tvg-id from: {channel_info}")
 
-        # Process channels with smaller batches and longer delays for difficult sites
-        batch_size = 2  # Reduced batch size
+        # Process channels one by one for better debugging
         fetch_results = []
         
-        for i in range(0, len(tasks), batch_size):
-            batch = tasks[i:i + batch_size]
-            logging.info(f"Processing batch {i//batch_size + 1}/{(len(tasks) + batch_size - 1)//batch_size}")
+        for idx, (line_idx, channel_info, url) in enumerate(tasks):
+            channel_name = channel_info.split(',')[1] if ',' in channel_info else f'Channel {idx+1}'
+            logging.info(f"🎬 Processing {channel_name} ({idx+1}/{len(tasks)})")
             
-            batch_results = await asyncio.gather(*[fetch_new_stream_url(task[2]) for task in batch])
-            fetch_results.extend(batch_results)
+            result = await fetch_new_stream_url(url)
+            fetch_results.append(result)
             
-            # Longer delay between batches
-            if i + batch_size < len(tasks):
-                await asyncio.sleep(5)
+            if result:
+                logging.info(f"✅ {channel_name}: {result}")
+            else:
+                logging.error(f"❌ {channel_name}: No stream found")
+            
+            # Delay between channels
+            if idx < len(tasks) - 1:
+                await asyncio.sleep(3)
 
         # Update URLs in the lines
         for idx, result in enumerate(fetch_results):
-            channel_name = tasks[idx][1].split(',')[1] if ',' in tasks[idx][1] else 'channel'
             if result:
-                logging.info(f"Updated {channel_name} with new URL: {result}")
                 lines[tasks[idx][0]] = result + "\n"
-            else:
-                logging.error(f"Failed to fetch stream URL for {channel_name}")
 
         # Write updated M3U file
         with open(m3u_path, 'w', encoding='utf-8') as file:
             file.writelines(lines)
 
-        logging.info(f"Successfully updated M3U file: {m3u_path}")
+        logging.info(f"📁 Successfully updated M3U file: {m3u_path}")
         
         # Print summary
         successful = sum(1 for result in fetch_results if result)
         total = len(fetch_results)
-        logging.info(f"Summary: {successful}/{total} channels updated successfully ({successful/total*100:.1f}%)")
+        logging.info(f"📊 Summary: {successful}/{total} channels updated successfully ({successful/total*100:.1f}%)")
         
     except Exception as e:
         logging.error(f"Failed to update M3U file: {e}")
