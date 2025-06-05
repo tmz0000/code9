@@ -1,6 +1,4 @@
 #EXTM3U
-#EXTINF:-1 tvg-id="12" tvg-name="" tvg-logo="https://i.ibb.co/FbPz9YBH/plb.jpg" group-title="NEW-XXX",Playboy HD
-http://190.11.225.124:5000/live/playboy_hd/playlist.m3u8
 #EXTINF:-1 tvg-id="" tvg-name="" tvg-logo="http://stb.uspeh.sbs/images/logo_chanel/PENTHOUSE1GOLD18PLUS200.png" group-title="OLD_X",Penthouse Gold HD
 http://rso.uspeh.sbs/va2VuPVtzdGJfdG9rZW5dIiwidWZ0IjoiMiIsInVmcCI6IjgzNDIiLCJzdHAiOiIxIiwiYWRsIjoiMTQiLCJsIjoiMDc3NjA4NjQiLCJwIjoiMDc3NjA4NjQ4NGVlNDg2NSIsImMiOiIyNzAiLCJ0IjoiMmE4MjhlYjJkNmZmOTUyZDg2OTU3OTQ4OTA5ZDUzNmEiLCJkIjoiMTYzMDg0IiwiciI6IjE2NjM1NiIsIm0iOiJ0diIsImR0IjoiMCJ9eyJ1IjoiaHR0cDovLzE5NS4yMTEuMjcuMTQ5Ojg4NjgvODM0Mi9pbmRleC5tM3U4P3R/index.m3u8
 #EXTINF:-1 tvg-id="" tvg-name="" tvg-logo="http://stb.uspeh.sbs/images/logo_chanel/VIVIDREDHD200.png" group-title="OLD_X",Vivid Red HD
@@ -19,6 +17,8 @@ http://rso.uspeh.sbs/va2VuPVtzdGJfdG9rZW5dIiwidWZ0IjoiMiIsInVmcCI6Ijg0MTMiLCJzdH
 http://rso.uspeh.sbs/va2VuPVtzdGJfdG9rZW5dIiwidWZ0IjoiMiIsInVmcCI6Ijg0MTUiLCJzdHAiOiIxIiwiYWRsIjoiMTQiLCJsIjoiMDc3NjA4NjQiLCJwIjoiMDc3NjA4NjQ4NGVlNDg2NSIsImMiOiI0MDkiLCJ0IjoiMmE4MjhlYjJkNmZmOTUyZDg2OTU3OTQ4OTA5ZDUzNmEiLCJkIjoiMTYzMDg0IiwiciI6IjE2NjM1NiIsIm0iOiJ0diIsImR0IjoiMCJ9eyJ1IjoiaHR0cDovLzE5NS4yMTEuMjcuMTQ5Ojg4NjgvODQxNS9pbmRleC5tM3U4P3R/index.m3u8
 #EXTINF:-1 tvg-id="" tvg-name="" tvg-logo="https://i.ibb.co/SX9txrH/ftvv.png",FTV Midnite HD
 https://fash1043.cloudycdn.services/slive/ftv_ftv_midnite_k1y_27049_midnite_secr_108_hls.smil/playlist.m3u8
+#EXTINF:-1 tvg-id="99" tvg-name="" tvg-logo="https://i.ibb.co/FbPz9YBH/plb.jpg" group-title="NEW-XXX",Playboy HD
+http://190.11.225.124:5000/live/playboy_hd/playlist.m3u8
 #EXTINF:-1 tvg-id="01" tvg-logo="https://i.ibb.co/fDWx3Jy/redlight.png" group-title="NEW-XXX",Redlight TV 720p
 https://ortepe.xyz:31228/tv/redlight/playlist.m3u8?wmsAuthSign=c2VydmVyX3RpbWU9Ni81LzIwMjUgMToyMjo1MyBQTSZoYXNoX3ZhbHVlPUJZRENnZkVpb2FBbHBYSzZhMDQ2R0E9PSZ2YWxpZG1pbnV0ZXM9NjA=
 #EXTINF:-1 tvg-id="02" tvg-logo="https://i.ibb.co/XffR3JnX/dorc.jpg" group-title="NEW-XXX",Dorcel HD
@@ -41,7 +41,7 @@ https://ortepe.xyz:31228/tv/private/playlist.m3u8?wmsAuthSign=c2VydmVyX3RpbWU9Ni
 https://ortepe.xyz:31228/tv/oxax/playlist.m3u8?wmsAuthSign=c2VydmVyX3RpbWU9Ni81LzIwMjUgMToyMjo1NCBQTSZoYXNoX3ZhbHVlPUh5ek05c1V5WWd6a0hHQVQrd2tveHc9PSZ2YWxpZG1pbnV0ZXM9NjA=
 #EXTINF:-1 tvg-id="11" group-title="NEW-XXX",Evil Angel HD 720p
 https://ortepe.xyz:31228/tv/evilangel/playlist.m3u8?wmsAuthSign=c2VydmVyX3RpbWU9Ni81LzIwMjUgMToyMjo1NCBQTSZoYXNoX3ZhbHVlPUh5ek05c1V5WWd6a0hHQVQrd2tveHc9PSZ2YWxpZG1pbnV0ZXM9NjA=
-#EXTINF:-1 tvg-id="12" group-title="NEW-XXX",test1
+#EXTINF:-1 tvg-id="12" group-title="NEW-XXX",test01
 https://moonlight.wideiptv.top/NuartTV/index.fmp4.m3u8?token=3364d3aa83a329491afc8bd516132da20c4af700-0666cdfabbf5c149c3b852544911d483-1749138614-1749127814
-#EXTINF:-1 tvg-id="13" group-title="NEW-XXX",test2
+#EXTINF:-1 tvg-id="13" group-title="NEW-XXX",test02
 https://moonlight.wideiptv.top/VividHD/index.fmp4.m3u8?token=27f89708c8ca925598876c4e4f9a5c07296066da-51270a8a3f781e185a938aeeb70590db-1749138424-1749127624
