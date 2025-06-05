@@ -506,6 +506,8 @@ async def update_m3u_file(m3u_path, channel_updates):
 async def main():
     m3u_path = 's18.m3u'
     channel_updates = {
+        "12": "https://www.pirilampo.tv/live-tv/nuart-tv.html/",
+        "13": "https://www.pirilampo.tv/live-tv/vivid-red-hd.html/",
         "01": "https://adult-tv-channels.com/redlight-hd-online/",
         "02": "https://adult-tv-channels.com/dorcel-tv-online/",
         "03": "https://adult-tv-channels.com/penthouse-passion-online/",
@@ -516,9 +518,7 @@ async def main():
         "08": "https://adult-tv-channels.com/pink-erotic-tv-online/",
         "09": "https://adult-tv-channels.com/private-tv-online/",
         "10": "https://adult-tv-channels.com/ox-ax-tv-online/",
-        "11": "https://adult-tv-channels.com/evil-angel-tv-online/",
-        "12": "https://www.pirilampo.tv/live-tv/nuart-tv.html/",
-        "13": "https://www.pirilampo.tv/live-tv/vivid-red-hd.html/"
+        "11": "https://adult-tv-channels.com/evil-angel-tv-online/"
     }
     await update_m3u_file(m3u_path, channel_updates)
 
