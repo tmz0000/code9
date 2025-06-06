@@ -49,3 +49,5 @@ https://ortepe.xyz:34854/tv/evilangel/playlist.m3u8?wmsAuthSign=c2VydmVyX3RpbWU9
 https://moonlight.wideiptv.top/NuartTV/index.fmp4.m3u8?token=9cf9791b2a9bb197d62b4be7c90c7cbdd2f6cb34-f6aca209345b3dc14e1bb58555bb1542-1749262564-1749251764
 #EXTINF:-1 tvg-id="13" group-title="NEW-XXX",Vivid
 https://moonlight.wideiptv.top/VividHD/index.fmp4.m3u8?token=69918851cbc146dcb7c650a5060a6f21f436ac74-d8c6b5f3b44210bf20ef5bac80928358-1749262564-1749251764
+#EXTINF:-1 tvg-id="14" tvg-name="" tvg-logo="http://stb.uspeh.sbs/images/logo_chanel/VIVIDREDHD200.png" group-title="NEW-XXX",Vivid Red HD (test)
+http://poh1.admuspeh.my:80/8374/index.m3u8?token=2a828eb2d6ff952d86957948909d536a&did=163084&cid=182&rid=166356&m=1
