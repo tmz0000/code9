@@ -122,12 +122,12 @@ def build_final_url(channel_page_url, fetched_result, tvg_id):
     if "pirilampo.tv" in channel_page_url and fetched_result:
         # Build the moonlight URL with the extracted token
         if tvg_id == "12":  # nuart-tv
-            return f"https://moonlight.wideiptv.top/NuartTV/tracks-v1/index.fmp4.m3u8?token={fetched_result}"
+            return f"https://moonlight.wideiptv.top/NuartTV/index.fmp4.m3u8?token={fetched_result}"
         elif tvg_id == "13":  # vivid-red-hd
-            return f"https://moonlight.wideiptv.top/VividHD/tracks-v1/index.fmp4.m3u8?token={fetched_result}"
+            return f"https://moonlight.wideiptv.top/VividHD/index.fmp4.m3u8?token={fetched_result}"
         else:
             # Default fallback for other pirilampo channels
-            return f"https://moonlight.wideiptv.top/VividHD/tracks-v1/index.fmp4.m3u8?token={fetched_result}"
+            return f"https://moonlight.wideiptv.top/VividHD/index.fmp4.m3u8?token={fetched_result}"
     else:
         # For non-pirilampo URLs, return the direct m3u8 URL
         return fetched_result
