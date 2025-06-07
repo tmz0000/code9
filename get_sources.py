@@ -11,48 +11,55 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 logging.basicConfig(level=logging.INFO)
 
 
-# Function to extract token from pirilampo.tv URLs
-async def fetch_pirilampo_token(channel_page_url, retries=3):
+# Function to extract token from pirilampo.tv URLs with shared browser context
+async def fetch_pirilampo_token(page, channel_page_url, retries=3):
     for attempt in range(retries):
         try:
-            async with async_playwright() as p:
-                browser = await p.chromium.launch(headless=False)
-                context = await browser.new_context()
-                page = await context.new_page()
+            token_urls = []
 
-                token_urls = []
+            # Capture requests containing tokens
+            async def handle_route(route, request):
+                request_url = request.url
+                if "token=" in request_url and "moonlight.wideiptv.top" in request_url:
+                    token_urls.append(request_url)
+                    logging.info(f"Found token URL: {request_url}")
+                await route.continue_()
 
-                # Capture requests containing tokens
-                async def handle_route(route, request):
-                    request_url = request.url
-                    if "token=" in request_url and "moonlight.wideiptv.top" in request_url:
-                        token_urls.append(request_url)
-                        logging.info(f"Found token URL: {request_url}")
-                    await route.continue_()
+            await page.route("**/*", handle_route)
 
-                await page.route("**/*", handle_route)
-
+            try:
+                await page.goto(channel_page_url, wait_until='domcontentloaded', timeout=30000)
+                
+                # Wait for token URL to be captured instead of fixed sleep
                 try:
-                    await page.goto(channel_page_url, wait_until='domcontentloaded', timeout=30000)
-                    await asyncio.sleep(8)  # Wait for dynamic content to load
+                    await page.wait_for_response(
+                        lambda response: "token=" in response.url and "moonlight.wideiptv.top" in response.url,
+                        timeout=15000
+                    )
+                    logging.info(f"Token response detected for {channel_page_url}")
+                except Exception:
+                    # Fallback to shorter sleep if specific response not detected
+                    await asyncio.sleep(3)
+                    logging.warning(f"Token response timeout, using fallback wait for {channel_page_url}")
+                
+            except Exception as e:
+                logging.error(f"Error loading page {channel_page_url} on attempt {attempt + 1}: {e}")
+                continue
+
+            # Clear the route to avoid interference with next page
+            await page.unroute("**/*")
+
+            # Extract token from captured URLs
+            for url in token_urls:
+                try:
+                    parsed_url = urlparse(url)
+                    query_params = parse_qs(parsed_url.query)
+                    if 'token' in query_params:
+                        token = query_params['token'][0]
+                        logging.info(f"Extracted token: {token}")
+                        return token
                 except Exception as e:
-                    logging.error(f"Error loading page {channel_page_url} on attempt {attempt + 1}: {e}")
-                    await browser.close()
-                    continue
-
-                await browser.close()
-
-                # Extract token from captured URLs
-                for url in token_urls:
-                    try:
-                        parsed_url = urlparse(url)
-                        query_params = parse_qs(parsed_url.query)
-                        if 'token' in query_params:
-                            token = query_params['token'][0]
-                            logging.info(f"Extracted token: {token}")
-                            return token
-                    except Exception as e:
-                        logging.error(f"Error extracting token from {url}: {e}")
+                    logging.error(f"Error extracting token from {url}: {e}")
 
         except Exception as e:
             logging.error(f"Attempt {attempt + 1} failed for {channel_page_url}: {e}")
@@ -64,48 +71,55 @@ async def fetch_pirilampo_token(channel_page_url, retries=3):
     return None
 
 
-# Function to fetch and validate m3u8 URL with retries (for regular channels)
-async def fetch_m3u8_stream_url(channel_page_url, retries=3):
+# Function to fetch and validate m3u8 URL with shared browser context
+async def fetch_m3u8_stream_url(page, channel_page_url, retries=3):
     for attempt in range(retries):
         try:
-            async with async_playwright() as p:
-                browser = await p.chromium.launch(headless=False)
-                context = await browser.new_context()
-                page = await context.new_page()
+            playlist_urls = []
 
-                playlist_urls = []
+            # Capture all .m3u8 requests
+            async def handle_route(route, request):
+                request_url = request.url
+                if ".m3u8" in request_url:
+                    playlist_urls.append(request_url)
+                    logging.info(f"Found potential playlist URL: {request_url}")
+                await route.continue_()
 
-                # Capture all .m3u8 requests
-                async def handle_route(route, request):
-                    request_url = request.url
-                    if ".m3u8" in request_url:
-                        playlist_urls.append(request_url)
-                        logging.info(f"Found potential playlist URL: {request_url}")
-                    await route.continue_()
+            await page.route("**/*", handle_route)
 
-                await page.route("**/*", handle_route)
-
+            try:
+                await page.goto(channel_page_url, wait_until='domcontentloaded', timeout=30000)
+                
+                # Wait for m3u8 response instead of fixed sleep
                 try:
-                    await page.goto(channel_page_url, wait_until='networkidle', timeout=30000)
-                except Exception as e:
-                    logging.error(f"Error loading page {channel_page_url} on attempt {attempt + 1}: {e}")
-                    await browser.close()
-                    continue
+                    await page.wait_for_response(
+                        lambda response: ".m3u8" in response.url,
+                        timeout=10000
+                    )
+                    logging.info(f"M3U8 response detected for {channel_page_url}")
+                except Exception:
+                    # Fallback to shorter sleep if specific response not detected
+                    await asyncio.sleep(2)
+                    logging.warning(f"M3U8 response timeout, using fallback wait for {channel_page_url}")
+                
+            except Exception as e:
+                logging.error(f"Error loading page {channel_page_url} on attempt {attempt + 1}: {e}")
+                continue
 
-                await asyncio.sleep(5)
-                await browser.close()
+            # Clear the route to avoid interference with next page
+            await page.unroute("**/*")
 
-                # Validate m3u8 URLs
-                for url in playlist_urls:
-                    try:
-                        response = requests.head(url, timeout=10, verify=False)
-                        if response.status_code == 200:
-                            logging.info(f"Valid playlist URL: {url}")
-                            return url  # Return valid URL immediately
-                        else:
-                            logging.warning(f"Invalid playlist URL: {url}")
-                    except requests.exceptions.RequestException as e:
-                        logging.error(f"Error validating URL {url}: {e}")
+            # Validate m3u8 URLs
+            for url in playlist_urls:
+                try:
+                    response = requests.head(url, timeout=10, verify=False)
+                    if response.status_code == 200:
+                        logging.info(f"Valid playlist URL: {url}")
+                        return url  # Return valid URL immediately
+                    else:
+                        logging.warning(f"Invalid playlist URL: {url}")
+                except requests.exceptions.RequestException as e:
+                    logging.error(f"Error validating URL {url}: {e}")
 
         except Exception as e:
             logging.error(f"Attempt {attempt + 1} failed for {channel_page_url}: {e}")
@@ -133,7 +147,32 @@ def build_final_url(channel_page_url, fetched_result, tvg_id):
         return fetched_result
 
 
-# Update M3U file
+# Async function to process a single channel with shared browser context
+async def process_channel(page, channel_info, channel_url, tvg_id, is_pirilampo=False):
+    """Process a single channel and return the result"""
+    try:
+        if is_pirilampo:
+            logging.info(f"Processing pirilampo channel tvg-id={tvg_id}: {channel_url}")
+            fetched_result = await fetch_pirilampo_token(page, channel_url)
+        else:
+            logging.info(f"Processing regular channel tvg-id={tvg_id}: {channel_url}")
+            fetched_result = await fetch_m3u8_stream_url(page, channel_url)
+        
+        if fetched_result:
+            final_url = build_final_url(channel_url, fetched_result, tvg_id)
+            if final_url:
+                logging.info(f"Successfully processed tvg-id={tvg_id}: {final_url}")
+                return tvg_id, final_url
+        
+        logging.error(f"Failed to process tvg-id={tvg_id}")
+        return tvg_id, None
+        
+    except Exception as e:
+        logging.error(f"Error processing channel tvg-id={tvg_id}: {e}")
+        return tvg_id, None
+
+
+# Update M3U file with shared browser context and true concurrency
 async def update_m3u_file(m3u_path, channel_updates, pirilampo_channels):
     if not os.path.exists(m3u_path):
         logging.error(f"File not found: {m3u_path}")
@@ -143,9 +182,9 @@ async def update_m3u_file(m3u_path, channel_updates, pirilampo_channels):
         with open(m3u_path, 'r') as file:
             lines = file.readlines()
 
-        # Separate regular channels and pirilampo channels
-        regular_tasks = []
-        pirilampo_tasks = []
+        # Collect all channels to process
+        channels_to_process = []
+        line_indices = {}  # Map tvg_id to line index for updates
 
         for i, line in enumerate(lines):
             if line.startswith('#EXTINF:') and 'group-title="NEW-XXX"' in line:
@@ -153,54 +192,69 @@ async def update_m3u_file(m3u_path, channel_updates, pirilampo_channels):
                 channel_url = lines[i + 1].strip()
                 tvg_id = channel_info.split('tvg-id="')[1].split('"')[0]
                 if tvg_id in channel_updates:
-                    if tvg_id in pirilampo_channels:
-                        # Schedule pirilampo token fetching
-                        pirilampo_tasks.append((i + 1, channel_info, channel_updates[tvg_id], tvg_id))
-                    else:
-                        # Schedule regular m3u8 fetching
-                        regular_tasks.append((i + 1, channel_info, channel_updates[tvg_id], tvg_id))
+                    is_pirilampo = tvg_id in pirilampo_channels
+                    channels_to_process.append((channel_info, channel_updates[tvg_id], tvg_id, is_pirilampo))
+                    line_indices[tvg_id] = i + 1
 
-        # Fetch regular m3u8 URLs concurrently
-        logging.info(f"Fetching {len(regular_tasks)} regular m3u8 URLs...")
-        regular_results = []
-        if regular_tasks:
-            regular_results = await asyncio.gather(*[fetch_m3u8_stream_url(task[2]) for task in regular_tasks])
+        if not channels_to_process:
+            logging.info("No channels to process")
+            return
 
-        # Fetch pirilampo tokens concurrently
-        logging.info(f"Fetching {len(pirilampo_tasks)} pirilampo tokens...")
-        pirilampo_results = []
-        if pirilampo_tasks:
-            pirilampo_results = await asyncio.gather(*[fetch_pirilampo_token(task[2]) for task in pirilampo_tasks])
+        # Launch browser once and reuse context
+        logging.info(f"Starting browser for processing {len(channels_to_process)} channels...")
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(headless=False)
+            context = await browser.new_context()
+            
+            # Create multiple pages for better concurrency (but limit to avoid overwhelming)
+            max_concurrent = min(4, len(channels_to_process))  # Limit concurrent pages
+            pages = []
+            for _ in range(max_concurrent):
+                pages.append(await context.new_page())
+            
+            # Process channels with limited concurrency
+            semaphore = asyncio.Semaphore(max_concurrent)
+            
+            async def process_with_semaphore(channel_data, page_index):
+                async with semaphore:
+                    page = pages[page_index % len(pages)]
+                    return await process_channel(page, *channel_data)
+            
+            # Process all channels concurrently
+            logging.info(f"Processing {len(channels_to_process)} channels concurrently...")
+            tasks = [
+                process_with_semaphore(channel_data, i) 
+                for i, channel_data in enumerate(channels_to_process)
+            ]
+            
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+            
+            # Close browser
+            await browser.close()
 
-        # Update regular channel URLs
-        for idx, result in enumerate(regular_results):
-            if result:
-                final_url = build_final_url(regular_tasks[idx][2], result, regular_tasks[idx][3])
-                if final_url:
-                    logging.info(f"Updated tvg-id={regular_tasks[idx][3]} with new URL: {final_url}")
-                    lines[regular_tasks[idx][0]] = final_url + "\n"
-                else:
-                    logging.error(f"Failed to build final URL for tvg-id={regular_tasks[idx][3]}")
+        # Update the M3U file with results
+        successful_updates = 0
+        for result in results:
+            if isinstance(result, Exception):
+                logging.error(f"Task failed with exception: {result}")
+                continue
+                
+            tvg_id, final_url = result
+            if final_url and tvg_id in line_indices:
+                lines[line_indices[tvg_id]] = final_url + "\n"
+                successful_updates += 1
+                logging.info(f"Updated line for tvg-id={tvg_id}")
             else:
-                logging.error(f"Failed to fetch stream URL for tvg-id={regular_tasks[idx][3]}")
-
-        # Update pirilampo channel URLs
-        for idx, result in enumerate(pirilampo_results):
-            if result:
-                final_url = build_final_url(pirilampo_tasks[idx][2], result, pirilampo_tasks[idx][3])
-                if final_url:
-                    logging.info(f"Updated tvg-id={pirilampo_tasks[idx][3]} with new URL: {final_url}")
-                    lines[pirilampo_tasks[idx][0]] = final_url + "\n"
-                else:
-                    logging.error(f"Failed to build final URL for tvg-id={pirilampo_tasks[idx][3]}")
-            else:
-                logging.error(f"Failed to fetch token for tvg-id={pirilampo_tasks[idx][3]}")
+                logging.error(f"Failed to get final URL for tvg-id={tvg_id}")
 
         # Write updated M3U file
-        with open(m3u_path, 'w') as file:
-            file.writelines(lines)
+        if successful_updates > 0:
+            with open(m3u_path, 'w') as file:
+                file.writelines(lines)
+            logging.info(f"Successfully updated M3U file with {successful_updates} channels: {m3u_path}")
+        else:
+            logging.warning("No channels were successfully updated")
 
-        logging.info(f"Successfully updated M3U file: {m3u_path}")
     except Exception as e:
         logging.error(f"Failed to update M3U file: {e}")
 
