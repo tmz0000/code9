@@ -422,332 +422,377 @@
     </button>
 
     <script>
-        let channels = [];
-        let currentHls = null;
-        let currentChannelId = null;
+    let channels = [];
+    let currentHls = null;
+    let currentChannelId = null;
+    let retryCount = 0;
+    const MAX_RETRIES = 3;
+    const RETRY_DELAY = 3000; // 3 seconds
 
-        // CORS Proxy for GitHub Pages HTTPS deployment
-        const CORS_PROXY = 'https://corsproxy.io/?url=';
+    // Multiple CORS proxy options with fallback
+    const CORS_PROXIES = [
+        'https://cors-anywhere.herokuapp.com/',
+        'https://api.allorigins.win/raw?url=',
+        'https://thingproxy.freeboard.io/fetch/',
+        'https://corsproxy.io/?'
+    ];
+    let currentProxyIndex = 0;
 
-        // Create floating particles
-        function createParticles() {
-            const particlesContainer = document.getElementById('particles');
-            for (let i = 0; i < 20; i++) {
-                const particle = document.createElement('div');
-                particle.className = 'particle';
-                particle.style.left = Math.random() * 100 + '%';
-                particle.style.animationDelay = Math.random() * 6 + 's';
-                particle.style.animationDuration = (Math.random() * 3 + 3) + 's';
-                particlesContainer.appendChild(particle);
-            }
+    // Get current proxy
+    function getCurrentProxy() {
+        return CORS_PROXIES[currentProxyIndex];
+    }
+
+    // Rotate to next proxy
+    function rotateProxy() {
+        currentProxyIndex = (currentProxyIndex + 1) % CORS_PROXIES.length;
+        console.log('Rotating to proxy:', CORS_PROXIES[currentProxyIndex]);
+    }
+
+    // Create floating particles
+    function createParticles() {
+        const particlesContainer = document.getElementById('particles');
+        for (let i = 0; i < 20; i++) {
+            const particle = document.createElement('div');
+            particle.className = 'particle';
+            particle.style.left = Math.random() * 100 + '%';
+            particle.style.animationDelay = Math.random() * 6 + 's';
+            particle.style.animationDuration = (Math.random() * 3 + 3) + 's';
+            particlesContainer.appendChild(particle);
         }
+    }
 
-        // Scroll to player section
-        function scrollToPlayer() {
-            const playerSection = document.getElementById('playerSection');
-            playerSection.scrollIntoView({ 
-                behavior: 'smooth', 
-                block: 'start' 
-            });
+    // Scroll to player section
+    function scrollToPlayer() {
+        const playerSection = document.getElementById('playerSection');
+        playerSection.scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'start' 
+        });
+    }
+
+    // Show/hide scroll to top button
+    function handleScroll() {
+        const scrollToTopBtn = document.getElementById('scrollToTop');
+        const playerSection = document.getElementById('playerSection');
+        const playerRect = playerSection.getBoundingClientRect();
+        
+        if (playerRect.top < -100) {
+            scrollToTopBtn.classList.add('visible');
+        } else {
+            scrollToTopBtn.classList.remove('visible');
         }
+    }
 
-        // Show/hide scroll to top button
-        function handleScroll() {
-            const scrollToTopBtn = document.getElementById('scrollToTop');
-            const playerSection = document.getElementById('playerSection');
-            const playerRect = playerSection.getBoundingClientRect();
-            
-            if (playerRect.top < -100) {
-                scrollToTopBtn.classList.add('visible');
-            } else {
-                scrollToTopBtn.classList.remove('visible');
-            }
-        }
-
-        // Fix URL for mixed content issues
-        function fixUrl(url) {
-            // Always use CORS proxy for HTTP streams on HTTPS sites
-            if (window.location.protocol === 'https:' && url.startsWith('http://')) {
-                return CORS_PROXY + encodeURIComponent(url);
-            }
+    // Fix URL for mixed content issues with proxy rotation
+    function fixUrl(url) {
+        // Skip proxy for HTTPS URLs when on HTTPS site
+        if (window.location.protocol === 'https:' && url.startsWith('https://')) {
             return url;
         }
+        
+        // Use proxy for HTTP URLs or when needed
+        const proxyUrl = getCurrentProxy() + encodeURIComponent(url);
+        console.log('Using proxy URL:', proxyUrl);
+        return proxyUrl;
+    }
 
-        // Parse M3U content
-        function parseM3U(content) {
-            const lines = content.split('\n');
-            const channels = [];
-            
-            for (let i = 0; i < lines.length; i++) {
-                if (lines[i].startsWith('#EXTINF:')) {
-                    const extinf = lines[i];
-                    const url = lines[i + 1]?.trim();
+    // Parse M3U content
+    function parseM3U(content) {
+        const lines = content.split('\n');
+        const channels = [];
+        
+        for (let i = 0; i < lines.length; i++) {
+            if (lines[i].startsWith('#EXTINF:')) {
+                const extinf = lines[i];
+                const url = lines[i + 1]?.trim();
+                
+                if (url && !url.startsWith('#')) {
+                    // Extract channel info
+                    const tvgIdMatch = extinf.match(/tvg-id="([^"]+)"/);
+                    const tvgNameMatch = extinf.match(/tvg-name="([^"]+)"/);
+                    const tvgLogoMatch = extinf.match(/tvg-logo="([^"]+)"/);
+                    const groupTitleMatch = extinf.match(/group-title="([^"]+)"/);
                     
-                    if (url && !url.startsWith('#')) {
-                        // Extract channel info
-                        const tvgIdMatch = extinf.match(/tvg-id="([^"]+)"/);
-                        const tvgNameMatch = extinf.match(/tvg-name="([^"]+)"/);
-                        const tvgLogoMatch = extinf.match(/tvg-logo="([^"]+)"/);
-                        const groupTitleMatch = extinf.match(/group-title="([^"]+)"/);
-                        
-                        // Extract channel name (after the comma)
-                        const nameMatch = extinf.split(',').pop()?.trim();
-                        
-                        channels.push({
-                            id: tvgIdMatch ? tvgIdMatch[1] : `ch_${channels.length}`,
-                            name: nameMatch || tvgNameMatch?.[1] || `Channel ${channels.length + 1}`,
-                            logo: tvgLogoMatch ? tvgLogoMatch[1] : null,
-                            group: groupTitleMatch ? groupTitleMatch[1] : 'Unknown',
-                            url: url,
-                            originalUrl: url
-                        });
-                    }
+                    // Extract channel name (after the comma)
+                    const nameMatch = extinf.split(',').pop()?.trim();
+                    
+                    channels.push({
+                        id: tvgIdMatch ? tvgIdMatch[1] : `ch_${channels.length}`,
+                        name: nameMatch || tvgNameMatch?.[1] || `Channel ${channels.length + 1}`,
+                        logo: tvgLogoMatch ? tvgLogoMatch[1] : null,
+                        group: groupTitleMatch ? groupTitleMatch[1] : 'Unknown',
+                        url: url,
+                        originalUrl: url
+                    });
                 }
             }
+        }
+        
+        return channels;
+    }
+
+    // Load M3U file
+    async function loadM3U() {
+        try {
+            const response = await fetch('s18.m3u');
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            const content = await response.text();
+            channels = parseM3U(content);
+            renderChannels();
+        } catch (error) {
+            console.error('Error loading M3U file:', error);
+            showError('Failed to load channel list. Make sure s18.m3u is in the same directory.');
+        }
+    }
+
+    // Render channels
+    function renderChannels() {
+        const grid = document.getElementById('channelsGrid');
+        grid.innerHTML = '';
+
+        channels.forEach((channel, index) => {
+            const card = document.createElement('div');
+            card.className = 'channel-card';
+            card.setAttribute('data-channel-id', channel.id);
             
-            return channels;
-        }
-
-        // Load M3U file
-        async function loadM3U() {
-            try {
-                const response = await fetch('s18.m3u');
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                const content = await response.text();
-                channels = parseM3U(content);
-                renderChannels();
-            } catch (error) {
-                console.error('Error loading M3U file:', error);
-                showError('Failed to load channel list. Make sure s18.m3u is in the same directory.');
-            }
-        }
-
-        // Render channels
-        function renderChannels() {
-            const grid = document.getElementById('channelsGrid');
-            grid.innerHTML = '';
-
-            channels.forEach((channel, index) => {
-                const card = document.createElement('div');
-                card.className = 'channel-card';
-                card.setAttribute('data-channel-id', channel.id);
-                
-                // Create logo or initial
-                const logoDiv = document.createElement('div');
-                logoDiv.className = 'channel-logo';
-                
-                if (channel.logo) {
-                    const img = document.createElement('img');
-                    img.src = channel.logo;
-                    img.style.width = '100%';
-                    img.style.height = '100%';
-                    img.style.borderRadius = '50%';
-                    img.style.objectFit = 'cover';
-                    img.onerror = () => {
-                        logoDiv.textContent = channel.name.charAt(0).toUpperCase();
-                    };
-                    logoDiv.appendChild(img);
-                } else {
+            // Create logo or initial
+            const logoDiv = document.createElement('div');
+            logoDiv.className = 'channel-logo';
+            
+            if (channel.logo) {
+                const img = document.createElement('img');
+                img.src = channel.logo;
+                img.style.width = '100%';
+                img.style.height = '100%';
+                img.style.borderRadius = '50%';
+                img.style.objectFit = 'cover';
+                img.onerror = () => {
                     logoDiv.textContent = channel.name.charAt(0).toUpperCase();
-                }
+                };
+                logoDiv.appendChild(img);
+            } else {
+                logoDiv.textContent = channel.name.charAt(0).toUpperCase();
+            }
 
-                // Determine if URL will be proxied
-                const isHttpOnHttps = window.location.protocol === 'https:' && channel.originalUrl.startsWith('http://');
-                const urlDisplay = isHttpOnHttps ? `${channel.originalUrl} (via CORSProxy.io)` : channel.originalUrl;
+            // Determine if URL will be proxied
+            const isHttpOnHttps = window.location.protocol === 'https:' && channel.originalUrl.startsWith('http://');
+            const urlDisplay = isHttpOnHttps ? `${channel.originalUrl} (via Proxy)` : channel.originalUrl;
 
-                card.innerHTML = `
-                    ${logoDiv.outerHTML}
-                    <div class="channel-name">${channel.name}</div>
-                    <div class="channel-group">${channel.group}</div>
-                    <div class="channel-url">${urlDisplay}</div>
-                    <button class="play-button">Play</button>
-                `;
-                
-                // Add click event listener
-                card.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    console.log('Channel clicked:', channel.name);
-                    playChannel(channel, this);
-                });
-                
-                // Add staggered animation delay
-                card.style.animationDelay = (index * 0.1) + 's';
-                
-                grid.appendChild(card);
-            });
-        }
-
-        // Play channel
-        async function playChannel(channel, clickedCard = null) {
-            const video = document.getElementById('videoPlayer');
-            const loadingOverlay = document.getElementById('loadingOverlay');
-            const currentChannelDiv = document.getElementById('currentChannel');
-            const errorMessage = document.getElementById('errorMessage');
+            card.innerHTML = `
+                ${logoDiv.outerHTML}
+                <div class="channel-name">${channel.name}</div>
+                <div class="channel-group">${channel.group}</div>
+                <div class="channel-url">${urlDisplay}</div>
+                <button class="play-button">Play</button>
+            `;
             
-            console.log('Starting playChannel for:', channel.name);
-            
-            // Force scroll to player section immediately
-            const playerSection = document.getElementById('playerSection');
-            playerSection.scrollIntoView({ 
-                behavior: 'smooth', 
-                block: 'start' 
+            // Add click event listener
+            card.addEventListener('click', function(e) {
+                e.preventDefault();
+                console.log('Channel clicked:', channel.name);
+                retryCount = 0; // Reset retry count when manually selecting a channel
+                playChannel(channel, this);
             });
             
-            // Also try alternative scroll methods
-            setTimeout(() => {
-                window.scrollTo({
-                    top: playerSection.offsetTop - 20,
-                    behavior: 'smooth'
-                });
-            }, 100);
+            // Add staggered animation delay
+            card.style.animationDelay = (index * 0.1) + 's';
             
-            // Update UI
-            currentChannelDiv.textContent = `Now Playing: ${channel.name}`;
-            loadingOverlay.style.display = 'flex';
-            errorMessage.style.display = 'none';
-            
-            // Update active channel
-            document.querySelectorAll('.channel-card').forEach(card => {
-                card.classList.remove('active');
-            });
-            if (clickedCard) {
-                clickedCard.classList.add('active');
-            }
-            currentChannelId = channel.id;
-
-            try {
-                // Destroy previous HLS instance
-                if (currentHls) {
-                    currentHls.destroy();
-                    currentHls = null;
-                }
-
-                // Fix URL for mixed content issues
-                let streamUrl = fixUrl(channel.url);
-                console.log('Playing stream:', streamUrl);
-                console.log('Original URL:', channel.originalUrl);
-
-                if (typeof Hls !== 'undefined' && Hls.isSupported()) {
-                    currentHls = new Hls({
-                        enableWorker: true,
-                        lowLatencyMode: true,
-                        backBufferLength: 90,
-                        maxBufferLength: 30,
-                        xhrSetup: function(xhr, url) {
-                            console.log('XHR Setup for:', url);
-                            // Add headers for CORS proxy
-                            xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
-                            // Set timeout
-                            xhr.timeout = 15000; // Increased timeout for proxy
-                        }
-                    });
-                    
-                    currentHls.loadSource(streamUrl);
-                    currentHls.attachMedia(video);
-                    
-                    currentHls.on(Hls.Events.MANIFEST_PARSED, () => {
-                        console.log('Manifest parsed successfully');
-                        loadingOverlay.style.display = 'none';
-                        video.play().catch(e => {
-                            console.error('Autoplay failed:', e);
-                            loadingOverlay.style.display = 'none';
-                            showError('Autoplay blocked. Please click play manually.');
-                        });
-                    });
-                    
-                    currentHls.on(Hls.Events.ERROR, (event, data) => {
-                        console.error('HLS error:', data);
-                        
-                        if (data.fatal) {
-                            // Stop all retry attempts and show error immediately
-                            loadingOverlay.style.display = 'none';
-                            
-                            switch (data.type) {
-                                case Hls.ErrorTypes.NETWORK_ERROR:
-                                    showError(`Network error: Stream may be offline or blocked by CORS. Try another channel.`);
-                                    break;
-                                    
-                                case Hls.ErrorTypes.MEDIA_ERROR:
-                                    showError(`Media error: Stream format may be incompatible. Try another channel.`);
-                                    break;
-                                    
-                                default:
-                                    showError(`Stream error: ${data.details || 'Unknown error'}. Try another channel.`);
-                                    break;
-                            }
-                        }
-                    });
-                } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-                    // Safari native HLS support
-                    video.src = streamUrl;
-                    video.addEventListener('loadedmetadata', () => {
-                        loadingOverlay.style.display = 'none';
-                    });
-                    video.addEventListener('error', (e) => {
-                        console.error('Video error:', e);
-                        loadingOverlay.style.display = 'none';
-                        showError('Failed to load stream. Stream may be incompatible or offline.');
-                    });
-                } else {
-                    loadingOverlay.style.display = 'none';
-                    showError('HLS not supported in this browser. Try using Chrome, Firefox, or Safari.');
-                }
-            } catch (error) {
-                console.error('Error playing channel:', error);
-                loadingOverlay.style.display = 'none';
-                showError('Failed to play stream: ' + error.message);
-            }
-        }
-
-        // Show error message
-        function showError(message) {
-            const errorDiv = document.getElementById('errorMessage');
-            errorDiv.textContent = message;
-            errorDiv.style.display = 'block';
-            setTimeout(() => {
-                errorDiv.style.display = 'none';
-            }, 10000);
-        }
-
-        // Control functions
-        function toggleFullscreen() {
-            const video = document.getElementById('videoPlayer');
-            if (video.requestFullscreen) {
-                video.requestFullscreen();
-            } else if (video.webkitRequestFullscreen) {
-                video.webkitRequestFullscreen();
-            } else if (video.msRequestFullscreen) {
-                video.msRequestFullscreen();
-            }
-        }
-
-        function toggleMute() {
-            const video = document.getElementById('videoPlayer');
-            video.muted = !video.muted;
-        }
-
-        function refreshStream() {
-            if (currentChannelId) {
-                const channel = channels.find(ch => ch.id === currentChannelId);
-                if (channel) {
-                    playChannel(channel);
-                }
-            }
-        }
-
-        // Initialize
-        document.addEventListener('DOMContentLoaded', () => {
-            createParticles();
-            loadM3U();
-            
-            // Add scroll event listener
-            window.addEventListener('scroll', handleScroll);
-            
-            // Auto-refresh channels every 5 minutes
-            setInterval(loadM3U, 5 * 60 * 1000);
+            grid.appendChild(card);
         });
-    </script>
+    }
+
+    // Play channel with retry logic
+    async function playChannel(channel, clickedCard = null) {
+        const video = document.getElementById('videoPlayer');
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const currentChannelDiv = document.getElementById('currentChannel');
+        const errorMessage = document.getElementById('errorMessage');
+        
+        console.log('Starting playChannel for:', channel.name);
+        
+        // Force scroll to player section immediately
+        const playerSection = document.getElementById('playerSection');
+        playerSection.scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'start' 
+        });
+        
+        // Update UI
+        currentChannelDiv.textContent = `Now Playing: ${channel.name}`;
+        loadingOverlay.style.display = 'flex';
+        errorMessage.style.display = 'none';
+        
+        // Update active channel
+        document.querySelectorAll('.channel-card').forEach(card => {
+            card.classList.remove('active');
+        });
+        if (clickedCard) {
+            clickedCard.classList.add('active');
+        }
+        currentChannelId = channel.id;
+
+        try {
+            // Destroy previous HLS instance
+            if (currentHls) {
+                currentHls.destroy();
+                currentHls = null;
+            }
+
+            // Fix URL for mixed content issues
+            let streamUrl = fixUrl(channel.url);
+            console.log('Playing stream:', streamUrl);
+            console.log('Original URL:', channel.originalUrl);
+
+            if (typeof Hls !== 'undefined' && Hls.isSupported()) {
+                currentHls = new Hls({
+                    enableWorker: true,
+                    lowLatencyMode: true,
+                    backBufferLength: 90,
+                    maxBufferLength: 30,
+                    xhrSetup: function(xhr, url) {
+                        console.log('XHR Setup for:', url);
+                        // Add headers for CORS proxy
+                        xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+                        // Set timeout
+                        xhr.timeout = 15000;
+                        // Some servers require Origin header
+                        xhr.setRequestHeader('Origin', window.location.origin);
+                        // Some proxies require additional headers
+                        if (getCurrentProxy().includes('cors-anywhere')) {
+                            xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+                        }
+                    }
+                });
+                
+                currentHls.loadSource(streamUrl);
+                currentHls.attachMedia(video);
+                
+                currentHls.on(Hls.Events.MANIFEST_PARSED, () => {
+                    console.log('Manifest parsed successfully');
+                    retryCount = 0; // Reset retry count on success
+                    loadingOverlay.style.display = 'none';
+                    video.play().catch(e => {
+                        console.error('Autoplay failed:', e);
+                        loadingOverlay.style.display = 'none';
+                        showError('Autoplay blocked. Please click play manually.');
+                    });
+                });
+                
+                currentHls.on(Hls.Events.ERROR, (event, data) => {
+                    console.error('HLS error:', data);
+                    
+                    if (data.fatal) {
+                        switch (data.type) {
+                            case Hls.ErrorTypes.NETWORK_ERROR:
+                                handleStreamError('Network error: Stream may be offline or blocked.', channel, clickedCard);
+                                break;
+                                
+                            case Hls.ErrorTypes.MEDIA_ERROR:
+                                handleStreamError('Media error: Stream format may be incompatible.', channel, clickedCard);
+                                break;
+                                
+                            default:
+                                handleStreamError(`Stream error: ${data.details || 'Unknown error'}.`, channel, clickedCard);
+                                break;
+                        }
+                    }
+                });
+            } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                // Safari native HLS support
+                video.src = streamUrl;
+                video.addEventListener('loadedmetadata', () => {
+                    loadingOverlay.style.display = 'none';
+                    retryCount = 0; // Reset retry count on success
+                });
+                video.addEventListener('error', (e) => {
+                    console.error('Video error:', e);
+                    handleStreamError('Failed to load stream. Stream may be incompatible or offline.', channel, clickedCard);
+                });
+            } else {
+                loadingOverlay.style.display = 'none';
+                showError('HLS not supported in this browser. Try using Chrome, Firefox, or Safari.');
+            }
+        } catch (error) {
+            console.error('Error playing channel:', error);
+            handleStreamError('Failed to play stream: ' + error.message, channel, clickedCard);
+        }
+    }
+
+    // Handle stream errors with retry logic
+    function handleStreamError(message, channel, clickedCard) {
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        loadingOverlay.style.display = 'none';
+        
+        retryCount++;
+        
+        if (retryCount <= MAX_RETRIES) {
+            showError(`${message} Retrying (${retryCount}/${MAX_RETRIES})...`);
+            
+            // Rotate proxy before retrying
+            rotateProxy();
+            
+            // Retry with delay
+            setTimeout(() => {
+                playChannel(channel, clickedCard);
+            }, RETRY_DELAY);
+        } else {
+            showError(`${message} Max retries reached. Try another channel.`);
+            retryCount = 0; // Reset retry count
+        }
+    }
+
+    // Show error message
+    function showError(message) {
+        const errorDiv = document.getElementById('errorMessage');
+        errorDiv.textContent = message;
+        errorDiv.style.display = 'block';
+        setTimeout(() => {
+            errorDiv.style.display = 'none';
+        }, 10000);
+    }
+
+    // Control functions
+    function toggleFullscreen() {
+        const video = document.getElementById('videoPlayer');
+        if (video.requestFullscreen) {
+            video.requestFullscreen();
+        } else if (video.webkitRequestFullscreen) {
+            video.webkitRequestFullscreen();
+        } else if (video.msRequestFullscreen) {
+            video.msRequestFullscreen();
+        }
+    }
+
+    function toggleMute() {
+        const video = document.getElementById('videoPlayer');
+        video.muted = !video.muted;
+    }
+
+    function refreshStream() {
+        retryCount = 0; // Reset retry count when manually refreshing
+        if (currentChannelId) {
+            const channel = channels.find(ch => ch.id === currentChannelId);
+            if (channel) {
+                const activeCard = document.querySelector(`.channel-card[data-channel-id="${currentChannelId}"]`);
+                playChannel(channel, activeCard);
+            }
+        }
+    }
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+        createParticles();
+        loadM3U();
+        
+        // Add scroll event listener
+        window.addEventListener('scroll', handleScroll);
+        
+        // Auto-refresh channels every 5 minutes
+        setInterval(loadM3U, 5 * 60 * 1000);
+    });
+</script>
 </body>
 </html>
