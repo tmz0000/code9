@@ -606,143 +606,201 @@
 
     // Play channel with retry logic
     async function playChannel(channel, clickedCard = null) {
-        const video = document.getElementById('videoPlayer');
-        const loadingOverlay = document.getElementById('loadingOverlay');
-        const currentChannelDiv = document.getElementById('currentChannel');
-        const errorMessage = document.getElementById('errorMessage');
-        
-        console.log('Starting playChannel for:', channel.name);
-        
-        // Force scroll to player section immediately
-        const playerSection = document.getElementById('playerSection');
-        playerSection.scrollIntoView({ 
-            behavior: 'smooth', 
-            block: 'start' 
-        });
-        
-        // Update UI
-        currentChannelDiv.textContent = `Now Playing: ${channel.name}`;
-        loadingOverlay.style.display = 'flex';
-        errorMessage.style.display = 'none';
-        
-        // Update active channel
-        document.querySelectorAll('.channel-card').forEach(card => {
-            card.classList.remove('active');
-        });
-        if (clickedCard) {
-            clickedCard.classList.add('active');
-        }
-        currentChannelId = channel.id;
-
-        try {
-            // Destroy previous HLS instance
-            if (currentHls) {
-                currentHls.destroy();
-                currentHls = null;
-            }
-
-            // Fix URL for mixed content issues
-            let streamUrl = fixUrl(channel.url);
-            console.log('Playing stream:', streamUrl);
-            console.log('Original URL:', channel.originalUrl);
-
-            if (typeof Hls !== 'undefined' && Hls.isSupported()) {
-                currentHls = new Hls({
-                    enableWorker: true,
-                    lowLatencyMode: true,
-                    backBufferLength: 90,
-                    maxBufferLength: 30,
-                    xhrSetup: function(xhr, url) {
-                        console.log('XHR Setup for:', url);
-                        // Add headers for CORS proxy
-                        xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
-                        // Set timeout
-                        xhr.timeout = 15000;
-                        // Some servers require Origin header
-                        xhr.setRequestHeader('Origin', window.location.origin);
-                        // Some proxies require additional headers
-                        if (getCurrentProxy().includes('cors-anywhere')) {
-                            xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
-                        }
-                    }
-                });
-                
-                currentHls.loadSource(streamUrl);
-                currentHls.attachMedia(video);
-                
-                currentHls.on(Hls.Events.MANIFEST_PARSED, () => {
-                    console.log('Manifest parsed successfully');
-                    retryCount = 0; // Reset retry count on success
-                    loadingOverlay.style.display = 'none';
-                    video.play().catch(e => {
-                        console.error('Autoplay failed:', e);
-                        loadingOverlay.style.display = 'none';
-                        showError('Autoplay blocked. Please click play manually.');
-                    });
-                });
-                
-                currentHls.on(Hls.Events.ERROR, (event, data) => {
-                    console.error('HLS error:', data);
-                    
-                    if (data.fatal) {
-                        switch (data.type) {
-                            case Hls.ErrorTypes.NETWORK_ERROR:
-                                handleStreamError('Network error: Stream may be offline or blocked.', channel, clickedCard);
-                                break;
-                                
-                            case Hls.ErrorTypes.MEDIA_ERROR:
-                                handleStreamError('Media error: Stream format may be incompatible.', channel, clickedCard);
-                                break;
-                                
-                            default:
-                                handleStreamError(`Stream error: ${data.details || 'Unknown error'}.`, channel, clickedCard);
-                                break;
-                        }
-                    }
-                });
-            } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-                // Safari native HLS support
-                video.src = streamUrl;
-                video.addEventListener('loadedmetadata', () => {
-                    loadingOverlay.style.display = 'none';
-                    retryCount = 0; // Reset retry count on success
-                });
-                video.addEventListener('error', (e) => {
-                    console.error('Video error:', e);
-                    handleStreamError('Failed to load stream. Stream may be incompatible or offline.', channel, clickedCard);
-                });
-            } else {
-                loadingOverlay.style.display = 'none';
-                showError('HLS not supported in this browser. Try using Chrome, Firefox, or Safari.');
-            }
-        } catch (error) {
-            console.error('Error playing channel:', error);
-            handleStreamError('Failed to play stream: ' + error.message, channel, clickedCard);
-        }
+    const video = document.getElementById('videoPlayer');
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    const currentChannelDiv = document.getElementById('currentChannel');
+    const errorMessage = document.getElementById('errorMessage');
+    
+    console.log('Starting playChannel for:', channel.name);
+    
+    // Update UI
+    currentChannelDiv.textContent = `Loading: ${channel.name}`;
+    loadingOverlay.style.display = 'flex';
+    errorMessage.style.display = 'none';
+    
+    // Update active channel
+    document.querySelectorAll('.channel-card').forEach(card => {
+        card.classList.remove('active');
+    });
+    if (clickedCard) {
+        clickedCard.classList.add('active');
     }
+    currentChannelId = channel.id;
 
-    // Handle stream errors with retry logic
-    function handleStreamError(message, channel, clickedCard) {
-        const loadingOverlay = document.getElementById('loadingOverlay');
-        loadingOverlay.style.display = 'none';
-        
-        retryCount++;
-        
-        if (retryCount <= MAX_RETRIES) {
-            showError(`${message} Retrying (${retryCount}/${MAX_RETRIES})...`);
+    try {
+        // Destroy previous HLS instance
+        if (currentHls) {
+            currentHls.destroy();
+            currentHls = null;
+        }
+
+        // First, try to fetch the playlist directly to check if it's downloadable
+        let manifestContent = null;
+        try {
+            const response = await fetch(channel.url, {
+                headers: {
+                    'Accept': 'application/x-mpegURL, application/vnd.apple.mpegurl, text/plain',
+                    'Origin': window.location.origin,
+                    'Referer': window.location.origin + '/'
+                }
+            });
             
-            // Rotate proxy before retrying
-            rotateProxy();
+            if (response.ok) {
+                manifestContent = await response.text();
+                console.log('Successfully fetched manifest directly');
+            }
+        } catch (directFetchError) {
+            console.log('Direct fetch failed, will try proxy', directFetchError);
+        }
+
+        // If we have the manifest content, create a blob URL
+        let streamUrl = channel.url;
+        if (manifestContent) {
+            // Create a blob URL from the manifest content
+            const blob = new Blob([manifestContent], { type: 'application/x-mpegURL' });
+            streamUrl = URL.createObjectURL(blob);
+            console.log('Using blob URL for manifest:', streamUrl);
+        } else {
+            // Use proxy as fallback with modified headers
+            streamUrl = getCurrentProxy() + encodeURIComponent(channel.url);
+            console.log('Using proxy URL:', streamUrl);
+        }
+
+        if (typeof Hls !== 'undefined' && Hls.isSupported()) {
+            currentHls = new Hls({
+                enableWorker: true,
+                lowLatencyMode: true,
+                backBufferLength: 90,
+                maxBufferLength: 30,
+                xhrSetup: function(xhr, url) {
+                    console.log('XHR Setup for:', url);
+                    
+                    // Set headers that might prevent 403 errors
+                    xhr.setRequestHeader('Accept', 'application/x-mpegURL, application/vnd.apple.mpegurl, text/plain');
+                    xhr.setRequestHeader('Origin', window.location.origin);
+                    xhr.setRequestHeader('Referer', window.location.origin + '/');
+                    
+                    // Some servers require these headers
+                    xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+                    xhr.setRequestHeader('Accept-Language', 'en-US,en;q=0.9');
+                    
+                    // Set timeout
+                    xhr.timeout = 10000;
+                },
+                loader: class CustomLoader extends Hls.DefaultConfig.loader {
+                    constructor(config) {
+                        super(config);
+                        // Override the load function to handle download-forced responses
+                        this.load = function(response, stats, context) {
+                            if (response.data instanceof Blob) {
+                                // If we get a blob response, convert it to text
+                                return new Promise((resolve) => {
+                                    const reader = new FileReader();
+                                    reader.onload = function() {
+                                        response.data = reader.result;
+                                        resolve();
+                                    };
+                                    reader.readAsText(response.data);
+                                });
+                            }
+                            return Hls.DefaultConfig.loader.prototype.load.call(this, response, stats, context);
+                        };
+                    }
+                }
+            });
             
-            // Retry with delay
+            currentHls.loadSource(streamUrl);
+            currentHls.attachMedia(video);
+            
+            currentHls.on(Hls.Events.MANIFEST_PARSED, () => {
+                console.log('Manifest parsed successfully');
+                retryCount = 0;
+                loadingOverlay.style.display = 'none';
+                currentChannelDiv.textContent = `Now Playing: ${channel.name}`;
+                video.play().catch(e => {
+                    console.error('Autoplay failed:', e);
+                    loadingOverlay.style.display = 'none';
+                    showError('Autoplay blocked. Please click play manually.');
+                });
+            });
+            
+            currentHls.on(Hls.Events.ERROR, (event, data) => {
+                console.error('HLS error:', data);
+                
+                if (data.fatal) {
+                    switch (data.type) {
+                        case Hls.ErrorTypes.NETWORK_ERROR:
+                            handleStreamError('Network error: Stream may be offline or blocked.', channel, clickedCard);
+                            break;
+                            
+                        case Hls.ErrorTypes.MEDIA_ERROR:
+                            handleStreamError('Media error: Stream format may be incompatible.', channel, clickedCard);
+                            break;
+                            
+                        default:
+                            handleStreamError(`Stream error: ${data.details || 'Unknown error'}.`, channel, clickedCard);
+                            break;
+                    }
+                }
+            });
+        } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+            // Safari native HLS support
+            video.src = streamUrl;
+            video.addEventListener('loadedmetadata', () => {
+                loadingOverlay.style.display = 'none';
+                retryCount = 0;
+                currentChannelDiv.textContent = `Now Playing: ${channel.name}`;
+            });
+            video.addEventListener('error', (e) => {
+                console.error('Video error:', e);
+                handleStreamError('Failed to load stream. Stream may be incompatible or offline.', channel, clickedCard);
+            });
+        } else {
+            loadingOverlay.style.display = 'none';
+            showError('HLS not supported in this browser. Try using Chrome, Firefox, or Safari.');
+        }
+    } catch (error) {
+        console.error('Error playing channel:', error);
+        handleStreamError('Failed to play stream: ' + error.message, channel, clickedCard);
+    }
+}
+
+// handleStreamError function:
+function handleStreamError(message, channel, clickedCard) {
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    const currentChannelDiv = document.getElementById('currentChannel');
+    
+    loadingOverlay.style.display = 'none';
+    currentChannelDiv.textContent = `Error: ${channel.name}`;
+    
+    retryCount++;
+    
+    if (retryCount <= MAX_RETRIES) {
+        showError(`${message} Retrying (${retryCount}/${MAX_RETRIES})...`);
+        
+        // Rotate proxy before retrying
+        rotateProxy();
+        
+        // Special handling for download-forced responses
+        if (message.includes('Network error') && retryCount === 1) {
+            // Try fetching as text first
+            setTimeout(() => {
+                playChannel({
+                    ...channel,
+                    url: channel.url + '&forceText=1' // Some servers accept this
+                }, clickedCard);
+            }, RETRY_DELAY);
+        } else {
+            // Regular retry
             setTimeout(() => {
                 playChannel(channel, clickedCard);
             }, RETRY_DELAY);
-        } else {
-            showError(`${message} Max retries reached. Try another channel.`);
-            retryCount = 0; // Reset retry count
         }
+    } else {
+        showError(`${message} Max retries reached. Try another channel.`);
+        retryCount = 0;
     }
+}
 
     // Show error message
     function showError(message) {
