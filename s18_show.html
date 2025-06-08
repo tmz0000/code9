@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Stream Player</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.15/hls.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.4.12/hls.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -115,7 +115,6 @@
             align-items: center;
             justify-content: center;
             z-index: 10;
-            flex-direction: column;
         }
 
         .loading-spinner {
@@ -125,13 +124,6 @@
             border-left: 4px solid #ff6b6b;
             border-radius: 50%;
             animation: spin 1s linear infinite;
-            margin-bottom: 20px;
-        }
-
-        .loading-text {
-            color: #fff;
-            font-size: 1rem;
-            text-align: center;
         }
 
         @keyframes spin {
@@ -221,12 +213,6 @@
             box-shadow: 0 15px 30px rgba(78, 205, 196, 0.3);
         }
 
-        .channel-card.blocked {
-            border-color: #ff6b6b;
-            background: linear-gradient(145deg, #4a2a2a, #3e1e1e);
-            opacity: 0.7;
-        }
-
         .channel-logo {
             width: 80px;
             height: 80px;
@@ -262,32 +248,6 @@
             word-break: break-all;
         }
 
-        .channel-status {
-            font-size: 0.8rem;
-            margin-bottom: 10px;
-            padding: 5px 10px;
-            border-radius: 15px;
-            font-weight: 600;
-        }
-
-        .status-available {
-            background: rgba(78, 205, 196, 0.2);
-            color: #4ecdc4;
-            border: 1px solid #4ecdc4;
-        }
-
-        .status-blocked {
-            background: rgba(255, 107, 107, 0.2);
-            color: #ff6b6b;
-            border: 1px solid #ff6b6b;
-        }
-
-        .status-proxy {
-            background: rgba(255, 193, 7, 0.2);
-            color: #ffc107;
-            border: 1px solid #ffc107;
-        }
-
         .play-button {
             background: linear-gradient(45deg, #ff6b6b, #ff8e8e);
             border: none;
@@ -303,13 +263,6 @@
         .play-button:hover {
             transform: translateY(-2px);
             box-shadow: 0 8px 25px rgba(255, 107, 107, 0.4);
-        }
-
-        .play-button:disabled {
-            background: #666;
-            cursor: not-allowed;
-            transform: none;
-            box-shadow: none;
         }
 
         .error-message {
@@ -437,17 +390,16 @@
 
         <div class="player-section" id="playerSection">
             <div class="video-container">
-                <video id="videoPlayer" controls crossorigin="anonymous"></video>
+                <video id="videoPlayer" controls></video>
                 <div class="loading-overlay" id="loadingOverlay">
                     <div class="loading-spinner"></div>
-                    <div class="loading-text" id="loadingText">Loading stream...</div>
                 </div>
             </div>
             
             <div class="current-channel" id="currentChannel">Select a channel to start streaming</div>
             
             <div class="proxy-info">
-                <strong>Stream Compatibility:</strong> Direct HTTPS streams supported. HTTP streams require proxy for HTTPS sites.
+                <strong>CORS Proxy:</strong> HTTP streams are automatically proxied through CORSProxy.io for HTTPS compatibility
             </div>
             
             <div class="controls">
@@ -473,10 +425,9 @@
         let channels = [];
         let currentHls = null;
         let currentChannelId = null;
-        let retryAttempts = {};
 
-        // Single reliable CORS proxy
-        const corsProxy = 'https://api.allorigins.win/raw?url=';
+        // CORS Proxy for GitHub Pages HTTPS deployment
+        const CORS_PROXY = 'https://corsproxy.io/?url=';
 
         // Create floating particles
         function createParticles() {
@@ -513,19 +464,13 @@
             }
         }
 
-        // Check if URL needs proxy and is compatible
-        function analyzeUrl(url) {
-            const isHttps = url.startsWith('https://');
-            const isHttp = url.startsWith('http://');
-            const needsProxy = window.location.protocol === 'https:' && isHttp;
-            
-            return {
-                isHttps,
-                isHttp,
-                needsProxy,
-                isCompatible: isHttps || needsProxy,
-                status: isHttps ? 'direct' : needsProxy ? 'proxy' : 'blocked'
-            };
+        // Fix URL for mixed content issues
+        function fixUrl(url) {
+            // Always use CORS proxy for HTTP streams on HTTPS sites
+            if (window.location.protocol === 'https:' && url.startsWith('http://')) {
+                return CORS_PROXY + encodeURIComponent(url);
+            }
+            return url;
         }
 
         // Parse M3U content
@@ -548,16 +493,13 @@
                         // Extract channel name (after the comma)
                         const nameMatch = extinf.split(',').pop()?.trim();
                         
-                        const analysis = analyzeUrl(url);
-                        
                         channels.push({
                             id: tvgIdMatch ? tvgIdMatch[1] : `ch_${channels.length}`,
                             name: nameMatch || tvgNameMatch?.[1] || `Channel ${channels.length + 1}`,
                             logo: tvgLogoMatch ? tvgLogoMatch[1] : null,
                             group: groupTitleMatch ? groupTitleMatch[1] : 'Unknown',
                             url: url,
-                            originalUrl: url,
-                            analysis: analysis
+                            originalUrl: url
                         });
                     }
                 }
@@ -568,74 +510,18 @@
 
         // Load M3U file
         async function loadM3U() {
-            console.log('Attempting to load M3U file...');
             try {
-                console.log('Fetching s18.m3u from:', window.location.origin + '/s18.m3u');
                 const response = await fetch('s18.m3u');
-                console.log('Fetch response:', response.status, response.statusText);
-                
                 if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status} - ${response.statusText}`);
+                    throw new Error(`HTTP error! status: ${response.status}`);
                 }
-                
                 const content = await response.text();
-                console.log('M3U content length:', content.length);
-                console.log('First 200 characters:', content.substring(0, 200));
-                
-                if (content.length === 0) {
-                    throw new Error('M3U file is empty');
-                }
-                
                 channels = parseM3U(content);
-                console.log('Parsed channels:', channels.length);
-                
-                if (channels.length === 0) {
-                    throw new Error('No valid channels found in M3U file');
-                }
-                
                 renderChannels();
-                showError(`Successfully loaded ${channels.length} channels!`, 'success');
-                
             } catch (error) {
                 console.error('Error loading M3U file:', error);
-                
-                // Try alternative methods
-                if (error.message.includes('404')) {
-                    showError('M3U file not found. Please make sure "s18.m3u" is in the same directory as this HTML file.');
-                } else if (error.message.includes('CORS')) {
-                    showError('CORS error loading M3U file. Try hosting this on a web server instead of opening locally.');
-                } else {
-                    showError(`Failed to load M3U file: ${error.message}`);
-                }
-                
-                // Show sample channels for testing
-                loadSampleChannels();
+                showError('Failed to load channel list. Make sure s18.m3u is in the same directory.');
             }
-        }
-
-        // Load sample channels for testing when M3U fails
-        function loadSampleChannels() {
-            console.log('Loading sample channels for testing...');
-            channels = [
-                {
-                    id: 'sample1',
-                    name: 'Sample HTTPS Stream',
-                    group: 'Test',
-                    url: 'https://cph-p2p-msl.akamaized.net/hls/live/2000341/test/master.m3u8',
-                    originalUrl: 'https://cph-p2p-msl.akamaized.net/hls/live/2000341/test/master.m3u8',
-                    analysis: analyzeUrl('https://cph-p2p-msl.akamaized.net/hls/live/2000341/test/master.m3u8')
-                },
-                {
-                    id: 'sample2',
-                    name: 'Big Buck Bunny',
-                    group: 'Test',
-                    url: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
-                    originalUrl: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
-                    analysis: analyzeUrl('https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8')
-                }
-            ];
-            renderChannels();
-            showError('M3U file failed to load. Showing sample channels for testing.', 'warning');
         }
 
         // Render channels
@@ -645,7 +531,7 @@
 
             channels.forEach((channel, index) => {
                 const card = document.createElement('div');
-                card.className = `channel-card ${!channel.analysis.isCompatible ? 'blocked' : ''}`;
+                card.className = 'channel-card';
                 card.setAttribute('data-channel-id', channel.id);
                 
                 // Create logo or initial
@@ -667,51 +553,30 @@
                     logoDiv.textContent = channel.name.charAt(0).toUpperCase();
                 }
 
-                // Status indicator
-                let statusClass, statusText;
-                if (channel.analysis.status === 'direct') {
-                    statusClass = 'status-available';
-                    statusText = 'Direct HTTPS';
-                } else if (channel.analysis.status === 'proxy') {
-                    statusClass = 'status-proxy';
-                    statusText = 'Via Proxy';
-                } else {
-                    statusClass = 'status-blocked';
-                    statusText = 'HTTP Blocked';
-                }
-
-                const playButtonDisabled = !channel.analysis.isCompatible ? 'disabled' : '';
-                const playButtonText = channel.analysis.isCompatible ? 'Play' : 'Blocked';
+                // Determine if URL will be proxied
+                const isHttpOnHttps = window.location.protocol === 'https:' && channel.originalUrl.startsWith('http://');
+                const urlDisplay = isHttpOnHttps ? `${channel.originalUrl} (via CORSProxy.io)` : channel.originalUrl;
 
                 card.innerHTML = `
                     ${logoDiv.outerHTML}
                     <div class="channel-name">${channel.name}</div>
                     <div class="channel-group">${channel.group}</div>
-                    <div class="channel-status ${statusClass}">${statusText}</div>
-                    <div class="channel-url">${channel.originalUrl}</div>
-                    <button class="play-button" ${playButtonDisabled}>${playButtonText}</button>
+                    <div class="channel-url">${urlDisplay}</div>
+                    <button class="play-button">Play</button>
                 `;
                 
-                // Add click event listener only for compatible channels
-                if (channel.analysis.isCompatible) {
-                    card.addEventListener('click', function(e) {
-                        e.preventDefault();
-                        console.log('Channel clicked:', channel.name);
-                        playChannel(channel, this);
-                    });
-                }
+                // Add click event listener
+                card.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    console.log('Channel clicked:', channel.name);
+                    playChannel(channel, this);
+                });
                 
                 // Add staggered animation delay
                 card.style.animationDelay = (index * 0.1) + 's';
                 
                 grid.appendChild(card);
             });
-        }
-
-        // Update loading text
-        function updateLoadingText(text) {
-            const loadingText = document.getElementById('loadingText');
-            loadingText.textContent = text;
         }
 
         // Play channel
@@ -721,22 +586,26 @@
             const currentChannelDiv = document.getElementById('currentChannel');
             const errorMessage = document.getElementById('errorMessage');
             
-            console.log('Starting playChannel for:', channel.name, 'Status:', channel.analysis.status);
+            console.log('Starting playChannel for:', channel.name);
             
-            // Reset retry counter for this channel
-            retryAttempts[channel.id] = 0;
-            
-            // Force scroll to player section
+            // Force scroll to player section immediately
             const playerSection = document.getElementById('playerSection');
             playerSection.scrollIntoView({ 
                 behavior: 'smooth', 
                 block: 'start' 
             });
             
+            // Also try alternative scroll methods
+            setTimeout(() => {
+                window.scrollTo({
+                    top: playerSection.offsetTop - 20,
+                    behavior: 'smooth'
+                });
+            }, 100);
+            
             // Update UI
             currentChannelDiv.textContent = `Now Playing: ${channel.name}`;
             loadingOverlay.style.display = 'flex';
-            updateLoadingText('Initializing stream...');
             errorMessage.style.display = 'none';
             
             // Update active channel
@@ -755,36 +624,23 @@
                     currentHls = null;
                 }
 
-                // Determine stream URL
-                let streamUrl;
-                if (channel.analysis.status === 'direct') {
-                    streamUrl = channel.originalUrl;
-                    updateLoadingText('Loading HTTPS stream...');
-                } else if (channel.analysis.status === 'proxy') {
-                    streamUrl = corsProxy + encodeURIComponent(channel.originalUrl);
-                    updateLoadingText('Loading via proxy...');
-                } else {
-                    throw new Error('Channel not compatible with HTTPS site');
-                }
-
+                // Fix URL for mixed content issues
+                let streamUrl = fixUrl(channel.url);
                 console.log('Playing stream:', streamUrl);
+                console.log('Original URL:', channel.originalUrl);
 
                 if (Hls.isSupported()) {
                     currentHls = new Hls({
                         enableWorker: true,
-                        lowLatencyMode: false,
+                        lowLatencyMode: true,
                         backBufferLength: 90,
                         maxBufferLength: 30,
-                        maxBufferSize: 60 * 1000 * 1000,
-                        maxBufferHole: 0.5,
-                        highBufferWatchdogPeriod: 2,
-                        nudgeOffset: 0.1,
-                        nudgeMaxRetry: 3,
-                        maxLoadingDelay: 4,
                         xhrSetup: function(xhr, url) {
                             console.log('XHR Setup for:', url);
-                            xhr.timeout = 15000; // 15 second timeout
-                            // Don't add extra headers that might cause CORS issues
+                            // Add headers for CORS proxy
+                            xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+                            // Set timeout
+                            xhr.timeout = 15000; // Increased timeout for proxy
                         }
                     });
                     
@@ -793,12 +649,11 @@
                     
                     currentHls.on(Hls.Events.MANIFEST_PARSED, () => {
                         console.log('Manifest parsed successfully');
-                        updateLoadingText('Starting playback...');
                         loadingOverlay.style.display = 'none';
                         video.play().catch(e => {
                             console.error('Autoplay failed:', e);
                             loadingOverlay.style.display = 'none';
-                            showError('Autoplay failed. Please click play manually.');
+                            showError('Autoplay blocked. Please click play manually.');
                         });
                     });
                     
@@ -806,30 +661,33 @@
                         console.error('HLS error:', data);
                         
                         if (data.fatal) {
-                            const attempts = retryAttempts[channel.id] || 0;
-                            
                             switch (data.type) {
                                 case Hls.ErrorTypes.NETWORK_ERROR:
-                                    console.log(`Network error (attempt ${attempts + 1}):`, data.details);
+                                    console.log('Network error occurred');
                                     
-                                    // Limit retry attempts to prevent infinite loops
-                                    if (attempts < 2) {
-                                        retryAttempts[channel.id] = attempts + 1;
-                                        updateLoadingText(`Retrying... (${attempts + 1}/2)`);
-                                        setTimeout(() => {
-                                            console.log('Retrying network recovery...');
-                                            currentHls.recoverNetworkError();
-                                        }, 2000);
+                                    // Try direct connection if using proxy
+                                    if (streamUrl.includes(CORS_PROXY)) {
+                                        console.log('Proxy failed, trying direct connection...');
+                                        currentHls.loadSource(channel.originalUrl);
+                                        currentHls.recoverNetworkError();
+                                        return;
+                                    }
+                                    
+                                    // Try with proxy if direct connection failed
+                                    if (channel.originalUrl.startsWith('https://')) {
+                                        console.log('Direct HTTPS failed, trying with proxy...');
+                                        const proxiedUrl = CORS_PROXY + encodeURIComponent(channel.originalUrl);
+                                        currentHls.loadSource(proxiedUrl);
+                                        currentHls.recoverNetworkError();
                                         return;
                                     }
                                     
                                     loadingOverlay.style.display = 'none';
-                                    showError(`Network error: Cannot reach stream. The channel may be offline or blocking requests.`);
+                                    showError(`Network error: ${data.details}. Stream may be offline or blocked by CORS.`);
                                     break;
                                     
                                 case Hls.ErrorTypes.MEDIA_ERROR:
                                     console.log('Media error, attempting recovery...');
-                                    updateLoadingText('Recovering media error...');
                                     currentHls.recoverMediaError();
                                     break;
                                     
@@ -840,51 +698,29 @@
                             }
                         }
                     });
-
-                    // Add timeout for loading
-                    setTimeout(() => {
-                        if (loadingOverlay.style.display !== 'none') {
-                            loadingOverlay.style.display = 'none';
-                            showError('Stream loading timeout. The channel may be offline.');
-                        }
-                    }, 30000); // 30 second timeout
-
                 } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
                     // Safari native HLS support
-                    updateLoadingText('Loading for Safari...');
                     video.src = streamUrl;
-                    
-                    const loadHandler = () => {
+                    video.addEventListener('loadedmetadata', () => {
                         loadingOverlay.style.display = 'none';
-                        video.removeEventListener('loadedmetadata', loadHandler);
-                        video.removeEventListener('error', errorHandler);
-                    };
-                    
-                    const errorHandler = (e) => {
+                    });
+                    video.addEventListener('error', (e) => {
                         console.error('Video error:', e);
                         loadingOverlay.style.display = 'none';
-                        showError('Failed to load stream in Safari. Try another channel.');
-                        video.removeEventListener('loadedmetadata', loadHandler);
-                        video.removeEventListener('error', errorHandler);
-                    };
-                    
-                    video.addEventListener('loadedmetadata', loadHandler);
-                    video.addEventListener('error', errorHandler);
-                    
-                    // Safari timeout
-                    setTimeout(() => {
-                        if (loadingOverlay.style.display !== 'none') {
-                            video.removeEventListener('loadedmetadata', loadHandler);
-                            video.removeEventListener('error', errorHandler);
-                            loadingOverlay.style.display = 'none';
-                            showError('Safari loading timeout. Try another channel.');
+                        
+                        // Try with proxy for Safari if direct failed
+                        if (!streamUrl.includes(CORS_PROXY)) {
+                            const proxiedUrl = CORS_PROXY + encodeURIComponent(channel.originalUrl);
+                            console.log('Safari: Trying with proxy:', proxiedUrl);
+                            video.src = proxiedUrl;
+                            return;
                         }
-                    }, 20000);
-                    
+                        
+                        showError('Failed to load stream. Stream may be incompatible or offline.');
+                    });
                 } else {
                     throw new Error('HLS not supported in this browser');
                 }
-                
             } catch (error) {
                 console.error('Error playing channel:', error);
                 loadingOverlay.style.display = 'none';
@@ -892,30 +728,14 @@
             }
         }
 
-        // Show error message with different types
-        function showError(message, type = 'error') {
+        // Show error message
+        function showError(message) {
             const errorDiv = document.getElementById('errorMessage');
             errorDiv.textContent = message;
-            
-            // Change styling based on type
-            if (type === 'success') {
-                errorDiv.style.background = 'rgba(78, 205, 196, 0.2)';
-                errorDiv.style.borderColor = '#4ecdc4';
-                errorDiv.style.color = '#4ecdc4';
-            } else if (type === 'warning') {
-                errorDiv.style.background = 'rgba(255, 193, 7, 0.2)';
-                errorDiv.style.borderColor = '#ffc107';
-                errorDiv.style.color = '#ffc107';
-            } else {
-                errorDiv.style.background = 'rgba(255, 107, 107, 0.2)';
-                errorDiv.style.borderColor = '#ff6b6b';
-                errorDiv.style.color = '#ff6b6b';
-            }
-            
             errorDiv.style.display = 'block';
             setTimeout(() => {
                 errorDiv.style.display = 'none';
-            }, type === 'success' ? 5000 : 10000);
+            }, 10000);
         }
 
         // Control functions
@@ -925,4 +745,36 @@
                 video.requestFullscreen();
             } else if (video.webkitRequestFullscreen) {
                 video.webkitRequestFullscreen();
-            } else if (video.
+            } else if (video.msRequestFullscreen) {
+                video.msRequestFullscreen();
+            }
+        }
+
+        function toggleMute() {
+            const video = document.getElementById('videoPlayer');
+            video.muted = !video.muted;
+        }
+
+        function refreshStream() {
+            if (currentChannelId) {
+                const channel = channels.find(ch => ch.id === currentChannelId);
+                if (channel) {
+                    playChannel(channel);
+                }
+            }
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            createParticles();
+            loadM3U();
+            
+            // Add scroll event listener
+            window.addEventListener('scroll', handleScroll);
+            
+            // Auto-refresh channels every 5 minutes
+            setInterval(loadM3U, 5 * 60 * 1000);
+        });
+    </script>
+</body>
+</html>
