@@ -568,18 +568,74 @@
 
         // Load M3U file
         async function loadM3U() {
+            console.log('Attempting to load M3U file...');
             try {
+                console.log('Fetching s18.m3u from:', window.location.origin + '/s18.m3u');
                 const response = await fetch('s18.m3u');
+                console.log('Fetch response:', response.status, response.statusText);
+                
                 if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
+                    throw new Error(`HTTP error! status: ${response.status} - ${response.statusText}`);
                 }
+                
                 const content = await response.text();
+                console.log('M3U content length:', content.length);
+                console.log('First 200 characters:', content.substring(0, 200));
+                
+                if (content.length === 0) {
+                    throw new Error('M3U file is empty');
+                }
+                
                 channels = parseM3U(content);
+                console.log('Parsed channels:', channels.length);
+                
+                if (channels.length === 0) {
+                    throw new Error('No valid channels found in M3U file');
+                }
+                
                 renderChannels();
+                showError(`Successfully loaded ${channels.length} channels!`, 'success');
+                
             } catch (error) {
                 console.error('Error loading M3U file:', error);
-                showError('Failed to load channel list. Make sure s18.m3u is in the same directory.');
+                
+                // Try alternative methods
+                if (error.message.includes('404')) {
+                    showError('M3U file not found. Please make sure "s18.m3u" is in the same directory as this HTML file.');
+                } else if (error.message.includes('CORS')) {
+                    showError('CORS error loading M3U file. Try hosting this on a web server instead of opening locally.');
+                } else {
+                    showError(`Failed to load M3U file: ${error.message}`);
+                }
+                
+                // Show sample channels for testing
+                loadSampleChannels();
             }
+        }
+
+        // Load sample channels for testing when M3U fails
+        function loadSampleChannels() {
+            console.log('Loading sample channels for testing...');
+            channels = [
+                {
+                    id: 'sample1',
+                    name: 'Sample HTTPS Stream',
+                    group: 'Test',
+                    url: 'https://cph-p2p-msl.akamaized.net/hls/live/2000341/test/master.m3u8',
+                    originalUrl: 'https://cph-p2p-msl.akamaized.net/hls/live/2000341/test/master.m3u8',
+                    analysis: analyzeUrl('https://cph-p2p-msl.akamaized.net/hls/live/2000341/test/master.m3u8')
+                },
+                {
+                    id: 'sample2',
+                    name: 'Big Buck Bunny',
+                    group: 'Test',
+                    url: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
+                    originalUrl: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
+                    analysis: analyzeUrl('https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8')
+                }
+            ];
+            renderChannels();
+            showError('M3U file failed to load. Showing sample channels for testing.', 'warning');
         }
 
         // Render channels
@@ -836,14 +892,30 @@
             }
         }
 
-        // Show error message
-        function showError(message) {
+        // Show error message with different types
+        function showError(message, type = 'error') {
             const errorDiv = document.getElementById('errorMessage');
             errorDiv.textContent = message;
+            
+            // Change styling based on type
+            if (type === 'success') {
+                errorDiv.style.background = 'rgba(78, 205, 196, 0.2)';
+                errorDiv.style.borderColor = '#4ecdc4';
+                errorDiv.style.color = '#4ecdc4';
+            } else if (type === 'warning') {
+                errorDiv.style.background = 'rgba(255, 193, 7, 0.2)';
+                errorDiv.style.borderColor = '#ffc107';
+                errorDiv.style.color = '#ffc107';
+            } else {
+                errorDiv.style.background = 'rgba(255, 107, 107, 0.2)';
+                errorDiv.style.borderColor = '#ff6b6b';
+                errorDiv.style.color = '#ff6b6b';
+            }
+            
             errorDiv.style.display = 'block';
             setTimeout(() => {
                 errorDiv.style.display = 'none';
-            }, 10000);
+            }, type === 'success' ? 5000 : 10000);
         }
 
         // Control functions
