@@ -78,6 +78,7 @@
             transform: translateY(20px);
             opacity: 0;
             animation: slideInUp 0.8s ease-out 0.2s forwards;
+            scroll-margin-top: 20px;
         }
 
         @keyframes slideInUp {
@@ -136,6 +137,17 @@
             font-size: 1.5rem;
             color: #4ecdc4;
             text-shadow: 0 0 20px rgba(78, 205, 196, 0.3);
+        }
+
+        .proxy-info {
+            background: rgba(78, 205, 196, 0.1);
+            border: 1px solid #4ecdc4;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 20px 0;
+            text-align: center;
+            font-size: 0.9rem;
+            color: #4ecdc4;
         }
 
         .channels-grid {
@@ -229,6 +241,13 @@
             margin-bottom: 15px;
         }
 
+        .channel-url {
+            font-size: 0.8rem;
+            color: #666;
+            margin-bottom: 10px;
+            word-break: break-all;
+        }
+
         .play-button {
             background: linear-gradient(45deg, #ff6b6b, #ff8e8e);
             border: none;
@@ -313,6 +332,33 @@
             }
         }
 
+        .scroll-to-top {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+            border: none;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            color: white;
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            opacity: 0;
+            visibility: hidden;
+            z-index: 1000;
+        }
+
+        .scroll-to-top.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .scroll-to-top:hover {
+            transform: scale(1.1);
+        }
+
         @media (max-width: 768px) {
             .header h1 {
                 font-size: 2rem;
@@ -342,7 +388,7 @@
             <p class="subtitle">Premium Streaming Experience</p>
         </div>
 
-        <div class="player-section">
+        <div class="player-section" id="playerSection">
             <div class="video-container">
                 <video id="videoPlayer" controls></video>
                 <div class="loading-overlay" id="loadingOverlay">
@@ -352,10 +398,15 @@
             
             <div class="current-channel" id="currentChannel">Select a channel to start streaming</div>
             
+            <div class="proxy-info">
+                <strong>Mixed Content Fix:</strong> HTTP streams are automatically proxied through CORS proxy for HTTPS compatibility
+            </div>
+            
             <div class="controls">
                 <button class="control-btn" onclick="toggleFullscreen()">Fullscreen</button>
                 <button class="control-btn" onclick="toggleMute()">Mute/Unmute</button>
                 <button class="control-btn" onclick="refreshStream()">Refresh Stream</button>
+                <button class="control-btn" onclick="scrollToPlayer()">Go to Player</button>
             </div>
         </div>
 
@@ -366,10 +417,21 @@
         <div class="error-message" id="errorMessage" style="display: none;"></div>
     </div>
 
+    <button class="scroll-to-top" id="scrollToTop" onclick="scrollToPlayer()">
+        ↑
+    </button>
+
     <script>
         let channels = [];
         let currentHls = null;
         let currentChannelId = null;
+
+        // CORS Proxy URLs (multiple fallbacks)
+        const corsProxies = [
+            'https://cors-anywhere.herokuapp.com/',
+            'https://api.allorigins.win/raw?url=',
+            'https://cors-proxy.htmldriven.com/?url='
+        ];
 
         // Create floating particles
         function createParticles() {
@@ -382,6 +444,38 @@
                 particle.style.animationDuration = (Math.random() * 3 + 3) + 's';
                 particlesContainer.appendChild(particle);
             }
+        }
+
+        // Scroll to player section
+        function scrollToPlayer() {
+            const playerSection = document.getElementById('playerSection');
+            playerSection.scrollIntoView({ 
+                behavior: 'smooth', 
+                block: 'start' 
+            });
+        }
+
+        // Show/hide scroll to top button
+        function handleScroll() {
+            const scrollToTopBtn = document.getElementById('scrollToTop');
+            const playerSection = document.getElementById('playerSection');
+            const playerRect = playerSection.getBoundingClientRect();
+            
+            if (playerRect.top < -100) {
+                scrollToTopBtn.classList.add('visible');
+            } else {
+                scrollToTopBtn.classList.remove('visible');
+            }
+        }
+
+        // Fix URL for mixed content issues
+        function fixUrl(url) {
+            // If we're on HTTPS and the stream is HTTP, use CORS proxy
+            if (window.location.protocol === 'https:' && url.startsWith('http://')) {
+                // Try different CORS proxies
+                return corsProxies[0] + encodeURIComponent(url);
+            }
+            return url;
         }
 
         // Parse M3U content
@@ -409,7 +503,8 @@
                             name: nameMatch || tvgNameMatch?.[1] || `Channel ${channels.length + 1}`,
                             logo: tvgLogoMatch ? tvgLogoMatch[1] : null,
                             group: groupTitleMatch ? groupTitleMatch[1] : 'Unknown',
-                            url: url
+                            url: url,
+                            originalUrl: url
                         });
                     }
                 }
@@ -463,10 +558,15 @@
                     logoDiv.textContent = channel.name.charAt(0).toUpperCase();
                 }
 
+                // Determine if URL will be proxied
+                const isHttpOnHttps = window.location.protocol === 'https:' && channel.originalUrl.startsWith('http://');
+                const urlDisplay = isHttpOnHttps ? `${channel.originalUrl} (via proxy)` : channel.originalUrl;
+
                 card.innerHTML = `
                     ${logoDiv.outerHTML}
                     <div class="channel-name">${channel.name}</div>
                     <div class="channel-group">${channel.group}</div>
+                    <div class="channel-url">${urlDisplay}</div>
                     <button class="play-button">Play</button>
                 `;
                 
@@ -483,6 +583,9 @@
             const loadingOverlay = document.getElementById('loadingOverlay');
             const currentChannelDiv = document.getElementById('currentChannel');
             const errorMessage = document.getElementById('errorMessage');
+            
+            // Scroll to player section
+            scrollToPlayer();
             
             // Update UI
             currentChannelDiv.textContent = `Now Playing: ${channel.name}`;
@@ -503,14 +606,24 @@
                     currentHls = null;
                 }
 
+                // Fix URL for mixed content issues
+                const streamUrl = fixUrl(channel.url);
+                console.log('Playing stream:', streamUrl);
+
                 if (Hls.isSupported()) {
                     currentHls = new Hls({
                         enableWorker: true,
                         lowLatencyMode: true,
-                        backBufferLength: 90
+                        backBufferLength: 90,
+                        xhrSetup: function(xhr, url) {
+                            // Add headers for CORS proxy if needed
+                            if (url.includes('cors-anywhere.herokuapp.com')) {
+                                xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+                            }
+                        }
                     });
                     
-                    currentHls.loadSource(channel.url);
+                    currentHls.loadSource(streamUrl);
                     currentHls.attachMedia(video);
                     
                     currentHls.on(Hls.Events.MANIFEST_PARSED, () => {
@@ -525,18 +638,27 @@
                         console.error('HLS error:', data);
                         loadingOverlay.style.display = 'none';
                         if (data.fatal) {
-                            showError(`Stream error: ${data.details || 'Unknown error'}`);
+                            // Try next CORS proxy if available
+                            if (streamUrl.includes(corsProxies[0]) && corsProxies.length > 1) {
+                                const nextProxy = corsProxies[1];
+                                const originalUrl = decodeURIComponent(streamUrl.split(corsProxies[0])[1]);
+                                const newUrl = nextProxy + encodeURIComponent(originalUrl);
+                                console.log('Trying next proxy:', newUrl);
+                                currentHls.loadSource(newUrl);
+                                return;
+                            }
+                            showError(`Stream error: ${data.details || 'Unknown error'}. Try another channel or refresh.`);
                         }
                     });
                 } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
                     // Safari native HLS support
-                    video.src = channel.url;
+                    video.src = streamUrl;
                     video.addEventListener('loadedmetadata', () => {
                         loadingOverlay.style.display = 'none';
                     });
                     video.addEventListener('error', (e) => {
                         loadingOverlay.style.display = 'none';
-                        showError('Failed to load stream');
+                        showError('Failed to load stream. Try another channel.');
                     });
                 } else {
                     throw new Error('HLS not supported in this browser');
@@ -555,7 +677,7 @@
             errorDiv.style.display = 'block';
             setTimeout(() => {
                 errorDiv.style.display = 'none';
-            }, 5000);
+            }, 8000);
         }
 
         // Control functions
@@ -588,6 +710,9 @@
         document.addEventListener('DOMContentLoaded', () => {
             createParticles();
             loadM3U();
+            
+            // Add scroll event listener
+            window.addEventListener('scroll', handleScroll);
             
             // Auto-refresh channels every 5 minutes
             setInterval(loadM3U, 5 * 60 * 1000);
