@@ -537,7 +537,7 @@
             channels.forEach((channel, index) => {
                 const card = document.createElement('div');
                 card.className = 'channel-card';
-                card.onclick = () => playChannel(channel);
+                card.setAttribute('data-channel-id', channel.id);
                 
                 // Create logo or initial
                 const logoDiv = document.createElement('div');
@@ -570,6 +570,13 @@
                     <button class="play-button">Play</button>
                 `;
                 
+                // Add click event listener
+                card.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    console.log('Channel clicked:', channel.name);
+                    playChannel(channel, this);
+                });
+                
                 // Add staggered animation delay
                 card.style.animationDelay = (index * 0.1) + 's';
                 
@@ -578,14 +585,28 @@
         }
 
         // Play channel
-        async function playChannel(channel) {
+        async function playChannel(channel, clickedCard = null) {
             const video = document.getElementById('videoPlayer');
             const loadingOverlay = document.getElementById('loadingOverlay');
             const currentChannelDiv = document.getElementById('currentChannel');
             const errorMessage = document.getElementById('errorMessage');
             
-            // Scroll to player section
-            scrollToPlayer();
+            console.log('Starting playChannel for:', channel.name);
+            
+            // Force scroll to player section immediately
+            const playerSection = document.getElementById('playerSection');
+            playerSection.scrollIntoView({ 
+                behavior: 'smooth', 
+                block: 'start' 
+            });
+            
+            // Also try alternative scroll methods
+            setTimeout(() => {
+                window.scrollTo({
+                    top: playerSection.offsetTop - 20,
+                    behavior: 'smooth'
+                });
+            }, 100);
             
             // Update UI
             currentChannelDiv.textContent = `Now Playing: ${channel.name}`;
@@ -596,7 +617,9 @@
             document.querySelectorAll('.channel-card').forEach(card => {
                 card.classList.remove('active');
             });
-            event.currentTarget.classList.add('active');
+            if (clickedCard) {
+                clickedCard.classList.add('active');
+            }
             currentChannelId = channel.id;
 
             try {
@@ -607,7 +630,7 @@
                 }
 
                 // Fix URL for mixed content issues
-                const streamUrl = fixUrl(channel.url);
+                let streamUrl = fixUrl(channel.url);
                 console.log('Playing stream:', streamUrl);
 
                 if (Hls.isSupported()) {
@@ -615,39 +638,73 @@
                         enableWorker: true,
                         lowLatencyMode: true,
                         backBufferLength: 90,
+                        maxBufferLength: 30,
                         xhrSetup: function(xhr, url) {
-                            // Add headers for CORS proxy if needed
-                            if (url.includes('cors-anywhere.herokuapp.com')) {
-                                xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
-                            }
+                            console.log('XHR Setup for:', url);
+                            // Add headers for different proxies
+                            xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+                            // Set timeout
+                            xhr.timeout = 10000;
                         }
                     });
                     
                     currentHls.loadSource(streamUrl);
                     currentHls.attachMedia(video);
                     
+                    let proxyAttempt = 0;
+                    
                     currentHls.on(Hls.Events.MANIFEST_PARSED, () => {
+                        console.log('Manifest parsed successfully');
                         loadingOverlay.style.display = 'none';
                         video.play().catch(e => {
                             console.error('Autoplay failed:', e);
+                            loadingOverlay.style.display = 'none';
                             showError('Autoplay failed. Please click play manually.');
                         });
                     });
                     
                     currentHls.on(Hls.Events.ERROR, (event, data) => {
                         console.error('HLS error:', data);
-                        loadingOverlay.style.display = 'none';
+                        
                         if (data.fatal) {
-                            // Try next CORS proxy if available
-                            if (streamUrl.includes(corsProxies[0]) && corsProxies.length > 1) {
-                                const nextProxy = corsProxies[1];
-                                const originalUrl = decodeURIComponent(streamUrl.split(corsProxies[0])[1]);
-                                const newUrl = nextProxy + encodeURIComponent(originalUrl);
-                                console.log('Trying next proxy:', newUrl);
-                                currentHls.loadSource(newUrl);
-                                return;
+                            switch (data.type) {
+                                case Hls.ErrorTypes.NETWORK_ERROR:
+                                    console.log('Network error, trying alternative proxy...');
+                                    
+                                    // Try alternative proxy
+                                    const altUrl = tryAlternativeProxy(channel.originalUrl, proxyAttempt + 1);
+                                    if (altUrl) {
+                                        proxyAttempt++;
+                                        console.log('Retrying with proxy:', altUrl);
+                                        currentHls.loadSource(altUrl);
+                                        currentHls.recoverNetworkError();
+                                        return;
+                                    }
+                                    
+                                    // If HTTPS stream failed, try with proxy
+                                    if (channel.originalUrl.startsWith('https://') && proxyAttempt === 0) {
+                                        const proxiedHttpsUrl = corsProxies[0] + encodeURIComponent(channel.originalUrl);
+                                        console.log('Trying HTTPS stream with proxy:', proxiedHttpsUrl);
+                                        proxyAttempt = 1;
+                                        currentHls.loadSource(proxiedHttpsUrl);
+                                        currentHls.recoverNetworkError();
+                                        return;
+                                    }
+                                    
+                                    loadingOverlay.style.display = 'none';
+                                    showError(`Network error: ${data.details}. Stream may be offline or blocked.`);
+                                    break;
+                                    
+                                case Hls.ErrorTypes.MEDIA_ERROR:
+                                    console.log('Media error, attempting recovery...');
+                                    currentHls.recoverMediaError();
+                                    break;
+                                    
+                                default:
+                                    loadingOverlay.style.display = 'none';
+                                    showError(`Stream error: ${data.details}. Try another channel.`);
+                                    break;
                             }
-                            showError(`Stream error: ${data.details || 'Unknown error'}. Try another channel or refresh.`);
                         }
                     });
                 } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
@@ -657,7 +714,17 @@
                         loadingOverlay.style.display = 'none';
                     });
                     video.addEventListener('error', (e) => {
+                        console.error('Video error:', e);
                         loadingOverlay.style.display = 'none';
+                        
+                        // Try with proxy for Safari
+                        if (channel.originalUrl.startsWith('https://')) {
+                            const proxiedUrl = corsProxies[0] + encodeURIComponent(channel.originalUrl);
+                            console.log('Safari: Trying with proxy:', proxiedUrl);
+                            video.src = proxiedUrl;
+                            return;
+                        }
+                        
                         showError('Failed to load stream. Try another channel.');
                     });
                 } else {
