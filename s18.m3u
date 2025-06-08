@@ -51,6 +51,6 @@ https://moonlight.wideiptv.top/NuartTV/index.fmp4.m3u8?token=342ec632bb5113ecca7
 https://moonlight.wideiptv.top/VividHD/index.fmp4.m3u8?token=9aaf3d8d0124018faf08254da1369c5f680038a6-2efa381ab55a90b9a6682a8f60e68f0b-1749366885-1749356085
 #EXTINF:-1 tvg-id="15" tvg-name="" tvg-logo="http://stb.uspeh.sbs/images/logo_chanel/VIVIDREDHD200.png" group-title="NEW-XXX",Vivid Red HD (test7)
 https://eu12.proxysite.com/process.php?d=http://poh1.admuspeh.my:80/8374/index.m3u8?token=2a828eb2d6ff952d86957948909d536a&did=163084&cid=182&rid=166356&m=1&render_js=False&country_code=HR
-#EXTINF:-1 tvg-id="16" tvg-name="" tvg-logo="" group-title="NEW-XXX", HD (test10)
+#EXTINF:-1 tvg-id="16" tvg-name="" tvg-logo="" group-title="NEW-XXX", HD (test11)
 http://31.148.48.15:80/O-la-la/tracks-v1a1/mono.ts.m3u8?token=test
 https://31.148.48.15:80/O-la-la/tracks-v1a1/mono.ts.m3u8
