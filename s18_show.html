@@ -629,7 +629,7 @@
                 console.log('Playing stream:', streamUrl);
                 console.log('Original URL:', channel.originalUrl);
 
-                if (Hls.isSupported()) {
+                if (typeof Hls !== 'undefined' && Hls.isSupported()) {
                     currentHls = new Hls({
                         enableWorker: true,
                         lowLatencyMode: true,
@@ -661,39 +661,20 @@
                         console.error('HLS error:', data);
                         
                         if (data.fatal) {
+                            // Stop all retry attempts and show error immediately
+                            loadingOverlay.style.display = 'none';
+                            
                             switch (data.type) {
                                 case Hls.ErrorTypes.NETWORK_ERROR:
-                                    console.log('Network error occurred');
-                                    
-                                    // Try direct connection if using proxy
-                                    if (streamUrl.includes(CORS_PROXY)) {
-                                        console.log('Proxy failed, trying direct connection...');
-                                        currentHls.loadSource(channel.originalUrl);
-                                        currentHls.recoverNetworkError();
-                                        return;
-                                    }
-                                    
-                                    // Try with proxy if direct connection failed
-                                    if (channel.originalUrl.startsWith('https://')) {
-                                        console.log('Direct HTTPS failed, trying with proxy...');
-                                        const proxiedUrl = CORS_PROXY + encodeURIComponent(channel.originalUrl);
-                                        currentHls.loadSource(proxiedUrl);
-                                        currentHls.recoverNetworkError();
-                                        return;
-                                    }
-                                    
-                                    loadingOverlay.style.display = 'none';
-                                    showError(`Network error: ${data.details}. Stream may be offline or blocked by CORS.`);
+                                    showError(`Network error: Stream may be offline or blocked by CORS. Try another channel.`);
                                     break;
                                     
                                 case Hls.ErrorTypes.MEDIA_ERROR:
-                                    console.log('Media error, attempting recovery...');
-                                    currentHls.recoverMediaError();
+                                    showError(`Media error: Stream format may be incompatible. Try another channel.`);
                                     break;
                                     
                                 default:
-                                    loadingOverlay.style.display = 'none';
-                                    showError(`Stream error: ${data.details}. Try another channel.`);
+                                    showError(`Stream error: ${data.details || 'Unknown error'}. Try another channel.`);
                                     break;
                             }
                         }
@@ -707,19 +688,11 @@
                     video.addEventListener('error', (e) => {
                         console.error('Video error:', e);
                         loadingOverlay.style.display = 'none';
-                        
-                        // Try with proxy for Safari if direct failed
-                        if (!streamUrl.includes(CORS_PROXY)) {
-                            const proxiedUrl = CORS_PROXY + encodeURIComponent(channel.originalUrl);
-                            console.log('Safari: Trying with proxy:', proxiedUrl);
-                            video.src = proxiedUrl;
-                            return;
-                        }
-                        
                         showError('Failed to load stream. Stream may be incompatible or offline.');
                     });
                 } else {
-                    throw new Error('HLS not supported in this browser');
+                    loadingOverlay.style.display = 'none';
+                    showError('HLS not supported in this browser. Try using Chrome, Firefox, or Safari.');
                 }
             } catch (error) {
                 console.error('Error playing channel:', error);
