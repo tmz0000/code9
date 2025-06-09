@@ -47,7 +47,7 @@ https://moonlight.wideiptv.top/NuartTV/index.fmp4.m3u8?token=f7e170bb0d1ae3d77cb
 https://moonlight.wideiptv.top/VividHD/index.fmp4.m3u8?token=0eee9557835177675c4707871faeda9a095185a1-5ebfb2360c921e125a67bf0f1e0577cb-1749453301-1749442501
 #EXTINF:-1 tvg-id="15" tvg-name="" tvg-logo="http://stb.uspeh.sbs/images/logo_chanel/VIVIDREDHD200.png" group-title="NEW-XXX",Vivid Red HD (test7)
 https://eu12.proxysite.com/process.php?d=http://poh1.admuspeh.my:80/8374/index.m3u8?token=2a828eb2d6ff952d86957948909d536a&did=163084&cid=182&rid=166356&m=1&render_js=False&country_code=HR
-#EXTINF:-1 tvg-id="16" tvg-name="" tvg-logo="" group-title="NEW-XXX", HD (test12)
+#EXTINF:-1 tvg-id="16" tvg-name="" tvg-logo="" group-title="NEW-XXX", EXXXotica HD
 http://31.148.48.15:80/O-la-la/tracks-v1a1/mono.ts.m3u8
 http://31.148.48.15:80/PenthouseGold/tracks-v1a1/mono.ts.m3u8
 http://51.159.102.100/PenthouseGold/index.m3u8
