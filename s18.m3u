@@ -42,9 +42,9 @@ https://ortepe.xyz:47457/tv/oxax/playlist.m3u8?wmsAuthSign=c2VydmVyX3RpbWU9Ni85L
 #EXTINF:-1 tvg-id="11" group-title="NEW-XXX",Evil Angel HD 720p
 https://ortepe.xyz:47457/tv/evilangel/playlist.m3u8?wmsAuthSign=c2VydmVyX3RpbWU9Ni85LzIwMjUgNDoyODoxOCBQTSZoYXNoX3ZhbHVlPWczYlFSaXR3Qis3SW9zU0swSXBIQnc9PSZ2YWxpZG1pbnV0ZXM9NjA=
 #EXTINF:-1 tvg-id="12" group-title="NEW-XXX",NuartTV 720p
-https://moonlight.wideiptv.top/NuartTV/index.fmp4.m3u8?token=280baf6ef95995653b93bc5103e5b50df0a53a5e-41528bb8d74b35289b4a7e4dd9d4edbd-1749496999-1749486199
+https://moonlight.wideiptv.top/NuartTV/index.fmp4.m3u8?token=2fa14451a385583d3bada7218ad95887cde7556f-922698db301e863deb6ec42f4c62e137-1749499061-1749488261
 #EXTINF:-1 tvg-id="13" group-title="NEW-XXX",Vivid
-https://moonlight.wideiptv.top/VividHD/index.fmp4.m3u8?token=2b3c303ca2bf5f05aaa4105d346db27a7b2f9124-8c1da1471a94e10dcffe46c2ec9edcfb-1749497003-1749486203
+https://moonlight.wideiptv.top/VividHD/index.fmp4.m3u8?token=cb94f4e3a6a1f843b41391d8249d2da35b2206ba-c7483a037b75cddc1b1af2cca4356300-1749499065-1749488265
 #EXTINF:-1 tvg-id="15" tvg-name="" tvg-logo="http://stb.uspeh.sbs/images/logo_chanel/VIVIDREDHD200.png" group-title="NEW-XXX",Vivid Red HD (test7)
 https://eu12.proxysite.com/process.php?d=http://poh1.admuspeh.my:80/8374/index.m3u8?token=2a828eb2d6ff952d86957948909d536a&did=163084&cid=182&rid=166356&m=1&render_js=False&country_code=HR
 #EXTINF:-1 tvg-id="16" tvg-name="" tvg-logo="" group-title="NEW-XXX", EXXXotica HD
