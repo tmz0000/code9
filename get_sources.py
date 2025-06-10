@@ -139,6 +139,8 @@ def build_final_url(channel_page_url, fetched_result, tvg_id):
             return f"https://moonlight.wideiptv.top/NuartTV/index.fmp4.m3u8?token={fetched_result}"
         elif tvg_id == "13":  # vivid-red-hd
             return f"https://moonlight.wideiptv.top/VividHD/index.fmp4.m3u8?token={fetched_result}"
+        elif tvg_id == "14":  # vivid-red-hd
+            return f"https://moonlight.wideiptv.top/leo-tv/index.fmp4.m3u8?token={fetched_result}"
         else:
             # Default fallback for other pirilampo channels
             return f"https://moonlight.wideiptv.top/VividHD/index.fmp4.m3u8?token={fetched_result}"
@@ -277,11 +279,12 @@ async def main():
         "10": "https://adult-tv-channels.com/ox-ax-tv-online/",
         "11": "https://adult-tv-channels.com/evil-angel-tv-online/",
         "12": "https://www.pirilampo.tv/live-tv/nuart-tv.html/",
-        "13": "https://www.pirilampo.tv/live-tv/vivid-red-hd.html/"
+        "13": "https://www.pirilampo.tv/live-tv/vivid-red-hd.html/",
+        "14": "https://www.pirilampo.tv/live-tv/leo-tv.html"
     }
     
     # Specify which channels are pirilampo channels (need token extraction)
-    pirilampo_channels = {"12", "13"}  # Add more IDs here as needed
+    pirilampo_channels = {"12", "13", "14"}  # Add more IDs here as needed
     
     await update_m3u_file(m3u_path, channel_updates, pirilampo_channels)
 
