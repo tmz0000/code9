@@ -45,8 +45,8 @@ https://ortepe.xyz:44515/tv/evilangel/playlist.m3u8?wmsAuthSign=c2VydmVyX3RpbWU9
 https://moonlight.wideiptv.top/NuartTV/index.fmp4.m3u8?token=07b149e95d28651f906ed9275e39f4110c0b521a-cb2ad061f3dbf3b483e1bb2e0b2642e4-1749559878-1749549078
 #EXTINF:-1 tvg-id="13" group-title="NEW-XXX",Vivid
 https://moonlight.wideiptv.top/VividHD/index.fmp4.m3u8?token=4b6548ac06556548c1a2e592769b78d74d8b1cd0-62b69e52228408df7c528764e38b956f-1749554750-1749543950
-#EXTINF:-1 tvg-id="13" group-title="NEW-XXX",Leo TV HD 1080p
-https://moonlight.wideiptv.top/VividHD/index.fmp4.m3u8?token=781ab3f9194185dd39aea8fabdd380d2a16e9f10-8d72b945744ec3d9eb3a2615942759a5-1749559878-1749549078
+#EXTINF:-1 tvg-id="14" group-title="NEW-XXX",Leo TV HD 1080p
+https://moonlight.wideiptv.top/LeoTV/index.fmp4.m3u8?token=781ab3f9194185dd39aea8fabdd380d2a16e9f10-8d72b945744ec3d9eb3a2615942759a5-1749559878-1749549078
 #EXTINF:-1 tvg-id="16" tvg-name="" tvg-logo="" group-title="NEW-XXX", EXXXotica HD
 http://31.148.48.15:80/O-la-la/tracks-v1a1/mono.ts.m3u8
 
