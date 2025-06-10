@@ -139,8 +139,8 @@ def build_final_url(channel_page_url, fetched_result, tvg_id):
             return f"https://moonlight.wideiptv.top/NuartTV/index.fmp4.m3u8?token={fetched_result}"
         elif tvg_id == "13":  # vivid-red-hd
             return f"https://moonlight.wideiptv.top/VividHD/index.fmp4.m3u8?token={fetched_result}"
-        elif tvg_id == "14":  # vivid-red-hd
-            return f"https://moonlight.wideiptv.top/leo-tv/index.fmp4.m3u8?token={fetched_result}"
+        elif tvg_id == "14":  # Leo-tv-hd
+            return f"https://moonlight.wideiptv.top/LeoTV/index.fmp4.m3u8?token={fetched_result}"
         else:
             # Default fallback for other pirilampo channels
             return f"https://moonlight.wideiptv.top/VividHD/index.fmp4.m3u8?token={fetched_result}"
