@@ -3,7 +3,7 @@
 http://poh2.admuspeh.my:80/8342/index.m3u8?token=2a828eb2d6ff952d86957948909d536a&did=163084&cid=270&rid=166356&m=1
 #EXTINF:-1 tvg-id="" tvg-name="" tvg-logo="http://stb.uspeh.sbs/images/logo_chanel/VIVIDREDHD200.png" group-title="NEW-XXX",Vivid Red HD
 http://poh2.admuspeh.my:80/8374/index.m3u8?token=2a828eb2d6ff952d86957948909d536a&did=163084&cid=182&rid=166356&m=1
-#EXTINF:-1 tvg-id="" tvg-name="" tvg-logo="https://i.ibb.co/KVddyZg/RED-lips.png" group-title="NEW-XXX",Red Lips HD
+#EXTINF:-1 tvg-id="" tvg-name="" tvg-logo="https://i.ibb.co/KVddyZg/RED-lips.png" group-title="NEW-XXX",Red Lips HD / RU
 http://poh2.admuspeh.my:80/8030/index.m3u8?token=2a828eb2d6ff952d86957948909d536a&did=163084&cid=420&rid=166356&m=1
 #EXTINF:-1 tvg-id="" tvg-name="" tvg-logo="http://stb.uspeh.sbs/images/logo_chanel/Brazzers TV.png" group-title="NEW-XXX",Brazzers TV
 http://poh2.admuspeh.my:80/8131/index.m3u8?token=2a828eb2d6ff952d86957948909d536a&did=163084&cid=476&rid=166356&m=1
@@ -45,8 +45,6 @@ https://ortepe.xyz:44515/tv/evilangel/playlist.m3u8?wmsAuthSign=c2VydmVyX3RpbWU9
 https://moonlight.wideiptv.top/NuartTV/index.fmp4.m3u8?token=638400bbce5df57a5c8818dd4a698d35bc10e793-4718cf4ea0e5df361285b4a60469c79c-1749552682-1749541882
 #EXTINF:-1 tvg-id="13" group-title="NEW-XXX",Vivid
 https://moonlight.wideiptv.top/VividHD/index.fmp4.m3u8?token=56643d95233a9b160ff015d1fd79e2d2903e16ec-b3262612e66792f941c2bd9472268b65-1749552685-1749541885
-#EXTINF:-1 tvg-id="15" tvg-name="" tvg-logo="http://stb.uspeh.sbs/images/logo_chanel/VIVIDREDHD200.png" group-title="NEW-XXX",Vivid Red HD (test7)
-https://eu12.proxysite.com/process.php?d=http://poh1.admuspeh.my:80/8374/index.m3u8?token=2a828eb2d6ff952d86957948909d536a&did=163084&cid=182&rid=166356&m=1&render_js=False&country_code=HR
 #EXTINF:-1 tvg-id="16" tvg-name="" tvg-logo="" group-title="NEW-XXX", EXXXotica HD
 http://31.148.48.15:80/O-la-la/tracks-v1a1/mono.ts.m3u8
 
