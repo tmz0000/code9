@@ -42,11 +42,11 @@ https://ortepe.xyz:10910/tv/oxax/playlist.m3u8?wmsAuthSign=c2VydmVyX3RpbWU9Ni8xN
 #EXTINF:-1 tvg-id="11" group-title="NEW-XXX",Evil Angel HD 720p
 https://ortepe.xyz:45751/tv/evilangel/playlist.m3u8?wmsAuthSign=c2VydmVyX3RpbWU9Ni8xNS8yMDI1IDc6MTY6NDMgUE0maGFzaF92YWx1ZT1MNC9WMWVybnNwUXZQQ0dyRzdTNytnPT0mdmFsaWRtaW51dGVzPTYw
 #EXTINF:-1 tvg-id="12" group-title="NEW-XXX",NuartTV 720p
-https://moonlight.wideiptv.top/NuartTV/index.fmp4.m3u8?token=16fa5fb8d9ad0152d8dc9f4eb0695c185d65a94f-2984c780114f5cb64bf91fc9b1f67c3a-1750190167-1750179367
+https://moonlight.wideiptv.top/NuartTV/index.fmp4.m3u8?token=bc62eb6d4e1823ff231d83929b8cbcc507254cf0-aadb2d9473bb9e6c1d4e83cdeedd53f8-1750193646-1750182846
 #EXTINF:-1 tvg-id="13" group-title="NEW-XXX",Vivid
-https://moonlight.wideiptv.top/VividHD/index.fmp4.m3u8?token=918d53020842dba6dda5289b93ab0fc62077f1bf-25206a74059ec70af244cb1ad2df4e62-1750190175-1750179375
+https://moonlight.wideiptv.top/VividHD/index.fmp4.m3u8?token=3e30207cae5ad45bcc98ee930be69b76190232e8-43baca09483d4cd203f9327521b7a915-1750193650-1750182850
 #EXTINF:-1 tvg-id="14" group-title="NEW-XXX",Leo TV HD 1080p
-https://moonlight.wideiptv.top/LeoTV/index.fmp4.m3u8?token=c9fa2531727957871ad9ee13045de1d5b32b9eff-58fa1cc013a4646f22888d80d4fc16c5-1750190171-1750179371
+https://moonlight.wideiptv.top/LeoTV/index.fmp4.m3u8?token=439920160ad857349404458737d3eea5c5a766d6-b2e3d67694694c3c001044558e672337-1750193650-1750182850
 #EXTINF:-1 tvg-id="16" tvg-name="" tvg-logo="" group-title="NEW-XXX", EXXXotica HD
 http://31.148.48.15:80/O-la-la/tracks-v1a1/mono.ts.m3u8
 
